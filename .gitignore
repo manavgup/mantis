@@ -1,0 +1,25 @@
+# Environment and secrets
+.env
+*.env
+harness.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.uv/
+dist/
+*.egg-info/
+
+# Run outputs (findings, audit logs — never commit these)
+runs/
+
+# Docker
+.docker/
+
+# macOS
+.DS_Store
+
+# IDE
+.cursor/
+.vscode/
