@@ -1,0 +1,7 @@
+[
+  {"path": "src/parser.c", "score": 5, "reason": "parses untrusted network data with manual buffer management"},
+  {"path": "src/alloc.c", "score": 4, "reason": "custom memory allocator with manual free tracking"},
+  {"path": "src/util.c", "score": 2, "reason": "string utility functions, low attack surface"},
+  {"path": "src/config.h", "score": 1, "reason": "compile-time constants and macros only"},
+  {"path": "src/crypto.c", "score": 5, "reason": "cryptographic operations with key material handling"}
+]

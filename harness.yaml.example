@@ -1,0 +1,44 @@
+# Target
+repo_url: https://github.com/owner/project
+repo_commit: main
+binary_name: parser
+project_name: libfoo
+project_description: "A C library for parsing FooBar format files"
+
+# Scan scope
+exclude_patterns:
+  - "*/test/*"
+  - "*/tests/*"
+  - "*/vendor/*"
+  - "*_generated.*"
+  - "*/third_party/*"
+max_files_to_scan: 100
+
+# Agent
+ranking_model: claude-opus-4-6
+worker_model: claude-opus-4-6
+validation_model: claude-opus-4-6
+max_turns_per_worker: 50
+
+# LLM backend: true = use Claude Code CLI (free with Max subscription, no API key needed)
+#              false = use direct Anthropic API (requires ANTHROPIC_API_KEY env var)
+use_claude_code: true
+
+# Parallelism
+max_parallel_workers: 4
+
+# Spend limits
+max_run_spend_usd: 100.0
+max_day_spend_usd: 500.0
+
+# Container
+worker_image: vuln-harness-worker:latest
+container_timeout_seconds: 1800
+worker_memory_gb: 4
+worker_cpus: 2
+
+# Storage
+redis_url: redis://localhost:6379
+postgres_url: postgresql://harness:changeme@localhost:5432/vulnharness
+run_output_dir: ./runs
+findings_encryption_key_env: FINDINGS_ENC_KEY

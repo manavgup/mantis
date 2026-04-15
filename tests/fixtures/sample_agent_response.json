@@ -1,0 +1,13 @@
+{
+  "verdict": "found",
+  "vuln_type": "heap-buffer-overflow",
+  "file": "src/parser.c",
+  "line": 247,
+  "function": "parse_chunk",
+  "description": "A heap buffer overflow exists in parse_chunk when processing malformed input. The function allocates a 12-byte buffer but reads 16 bytes when the input contains an oversized chunk header.",
+  "reproduction": "echo 'AAAAAAAAAAAAAAAA' | /target/bin/parser -f /dev/stdin",
+  "asan_output": "ERROR: AddressSanitizer: heap-buffer-overflow on address 0x60200000001c\nREAD of size 4 at 0x60200000001c thread T0\n    #0 0x401239 in parse_chunk /src/parser.c:247:15",
+  "candidate_patch": "--- a/src/parser.c\n+++ b/src/parser.c\n@@ -245,3 +245,5 @@\n-    memcpy(buf, input, len);\n+    if (len > buf_size) len = buf_size;\n+    memcpy(buf, input, len);",
+  "confidence": "high",
+  "reasoning": "1. Read parse_chunk function — allocates fixed 12-byte buffer at line 230.\n2. Input length from chunk header is not validated before memcpy at line 247.\n3. Crafted input with length > 12 triggers OOB read confirmed by ASAN."
+}

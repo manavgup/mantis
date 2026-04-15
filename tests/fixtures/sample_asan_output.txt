@@ -1,0 +1,17 @@
+=================================================================
+==12345==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x60200000001c at pc 0x00000040123a bp 0x7ffd12345678 sp 0x7ffd12345670
+READ of size 4 at 0x60200000001c thread T0
+    #0 0x401239 in parse_chunk /src/parser.c:247:15
+    #1 0x4015ab in process_input /src/parser.c:312:5
+    #2 0x401789 in main /src/main.c:45:12
+    #3 0x7f1234567890 in __libc_start_main /build/glibc-abc123/csu/../csu/libc-start.c:308:16
+
+0x60200000001c is located 0 bytes to the right of 12-byte region [0x602000000010,0x60200000001c)
+allocated by thread T0 here:
+    #0 0x7f12345abcde in malloc (/usr/lib/x86_64-linux-gnu/libasan.so.6+0xb0cde)
+    #1 0x4010ab in parse_chunk /src/parser.c:230:20
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow /src/parser.c:247:15 in parse_chunk
+Shadow bytes around the buggy address:
+  0x0c047fff7fb0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+==12345==ABORTING

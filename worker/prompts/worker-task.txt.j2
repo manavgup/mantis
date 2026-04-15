@@ -1,0 +1,16 @@
+Your assigned file is: {{ file_path }}
+
+The target project is: {{ project_name }} ({{ project_description }})
+The ASAN-instrumented binary is at: /tmp/bin/{{ binary_name }}
+(Also check /tmp/src/ for binaries built in-place. The binary is on PATH.)
+
+Focus your analysis on {{ file_path }}. Read it carefully. Form hypotheses about
+memory safety vulnerabilities — buffer overflows, use-after-free, integer
+overflows leading to bad allocation sizes, format string bugs, or similar.
+
+Test your hypotheses by running the binary with crafted inputs. Use GDB or LLDB
+if you need to inspect execution state. Read ASAN output carefully — it tells
+you exactly what went wrong and where.
+
+Work methodically. If one hypothesis fails, try the next. You have {{ max_turns }}
+turns. Use them.

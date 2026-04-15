@@ -1,7 +1,11 @@
 # Environment and secrets
 .env
+.env.*
 *.env
+.env.local
 harness.yaml
+harness-*.yaml
+!harness.yaml.example
 
 # Python
 __pycache__/
@@ -23,3 +27,4 @@ runs/
 # IDE
 .cursor/
 .vscode/
+.claude/
