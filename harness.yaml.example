@@ -5,6 +5,11 @@ binary_name: parser
 project_name: libfoo
 project_description: "A C library for parsing FooBar format files"
 
+# Build — optional flags for ./configure (empty = default --disable-shared)
+# Use this for projects with non-standard configure scripts (e.g. FFmpeg)
+# configure_flags: "--extra-cflags='-fsanitize=address' --disable-x86asm"
+configure_flags: ""
+
 # Scan scope
 exclude_patterns:
   - "*/test/*"

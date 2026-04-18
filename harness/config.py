@@ -47,6 +47,9 @@ class Config(BaseSettings):
     project_name: str
     project_description: str
 
+    # Build
+    configure_flags: str = ""  # extra flags for ./configure (e.g. FFmpeg's --extra-cflags)
+
     # Scan scope
     exclude_patterns: list[str] = []
     max_files_to_scan: int | None = None

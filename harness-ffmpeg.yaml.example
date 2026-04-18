@@ -1,0 +1,56 @@
+# FFmpeg vulnerability scan configuration
+# Target: FFmpeg 4.4 (known-vulnerable release for pipeline validation)
+
+# Target
+repo_url: https://github.com/FFmpeg/FFmpeg
+repo_commit: n4.4
+binary_name: ffmpeg
+project_name: FFmpeg
+project_description: "A multimedia framework for decoding, encoding, transcoding, muxing, demuxing, streaming, filtering, and playing audio and video. Handles dozens of codecs and container formats (H.264, HEVC, VP9, AAC, MP3, MKV, MP4, AVI, etc.)."
+
+# Build — FFmpeg uses custom ./configure, not autotools.
+# It ignores CFLAGS/LDFLAGS env vars; must use --extra-cflags/--extra-ldflags.
+configure_flags: >-
+  --cc=clang
+  --extra-cflags="-fsanitize=address -g -O1 -fno-omit-frame-pointer"
+  --extra-ldflags="-fsanitize=address"
+  --disable-x86asm
+  --disable-doc
+  --disable-ffplay
+  --disable-network
+  --disable-shared
+
+# Scan scope — FFmpeg has ~2000 C files; focus on highest-risk
+exclude_patterns:
+  - "*/tests/*"
+  - "*/test/*"
+  - "*/doc/*"
+  - "*/tools/*"
+  - "*/compat/*"
+  - "*_template.c"
+max_files_to_scan: 20  # start small, increase after validation
+
+# Agent
+ranking_model: anthropic/claude-sonnet-4-6
+worker_model: anthropic/claude-sonnet-4-6
+validation_model: anthropic/claude-sonnet-4-6
+max_turns_per_worker: 30
+
+# Parallelism — keep low for first run
+max_parallel_workers: 4
+
+# Spend limits
+max_run_spend_usd: 50.0
+max_day_spend_usd: 100.0
+
+# Container — FFmpeg compilation is heavy; increase resources
+worker_image: vuln-harness-worker:latest
+container_timeout_seconds: 2400  # 40 min (FFmpeg compile takes ~10-15 min)
+worker_memory_gb: 6
+worker_cpus: 4
+
+# Storage
+redis_url: redis://localhost:6379
+postgres_url: postgresql://harness:changeme@localhost:5432/vulnharness
+run_output_dir: ./runs
+findings_encryption_key_env: FINDINGS_ENC_KEY
