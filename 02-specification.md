@@ -3,25 +3,25 @@
 
 ## Overview
 
-The harness operates as a pipeline of five stages executed by a Python orchestrator. The orchestrator manages a job queue and dispatches isolated Docker containers. Each container runs Claude Code in headless mode against a single file of the target codebase. Results flow back to the orchestrator, through a validation agent, into an audit-logged findings store, and finally into a human-review package.
+The harness operates as a pipeline of five stages executed by a Python orchestrator. The orchestrator manages a job queue and dispatches isolated Docker containers. Each container runs a Python ReAct agent loop (powered by litellm) against a single file of the target codebase. Results flow back to the orchestrator, through a validation agent, into an audit-logged findings store, and finally into a human-review package.
 
 ```
 Target repo
     │
     ▼
-[Stage 1] File-ranking agent          ← single LLM call, no container
+[Stage 1] File-ranking agent          ← litellm.acompletion(), no container
     │  sorted priority queue
     ▼
 [Stage 2] Job queue + dispatcher      ← Redis queue, N parallel containers
     │
     ▼
-[Stage 3] Worker containers (×N)      ← Claude Code headless, ASAN verifier
-    │  raw findings (JSONL)
+[Stage 3] Worker containers (×N)      ← Python ReAct loop + litellm, ASAN verifier
+    │  raw findings (JSON)
     ▼
 [Stage 4] ASAN parser + triage        ← extracts crash metadata, severity tier
     │  structured findings
     ▼
-[Stage 5] Validation agent            ← separate Claude instance, filters noise
+[Stage 5] Validation agent            ← litellm.acompletion(), filters noise
     │  validated findings
     ▼
 Human-review package                  ← markdown report per finding
@@ -43,7 +43,7 @@ Prioritize which files to scan first. A 500-file repo should have its highest-ri
 - Configurable exclusion patterns (e.g. `*/test/*`, `*/vendor/*`, `*_generated.*`)
 
 ### Process
-Single `anthropic.messages.create` API call (not Claude Code — just the Messages API). Not a container. Model: `claude-opus-4-6`. The prompt presents a batch of up to 200 file paths at once and asks the model to score each 1–5:
+Single `litellm.acompletion()` API call. Not a container. Model: configurable, default `anthropic/claude-opus-4-6`. The prompt presents a batch of up to 200 file paths at once and asks the model to score each 1–5:
 
 ```
 Score: 1 — constants, generated code, no logic
@@ -134,42 +134,42 @@ valgrind                 # memory analysis (slower but deeper)
 build-essential          # make, cmake, autoconf etc
 git                      # for any submodule operations on source
 python3.12               # for helper scripts
-nodejs                   # required by Claude Code CLI
-npm                      # required by Claude Code CLI
 libasan6                 # AddressSanitizer runtime
+litellm                  # provider-agnostic LLM API (installed via pip)
 ```
 
-Claude Code CLI installed at image build time:
+Agent code installed at image build time:
 ```dockerfile
-RUN npm install -g @anthropic-ai/claude-code
+COPY agent/ /agent/
+RUN pip install --no-cache-dir -r /agent/requirements.txt
 ```
 
-The target project source is volume-mounted at runtime, not baked into the image. The target binary is compiled at container startup by an entrypoint script before Claude Code is invoked.
+The target project source is volume-mounted at runtime, not baked into the image. The target binary is compiled at container startup by an entrypoint script before the agent is invoked.
 
 ### Entrypoint script (`entrypoint.sh`)
 
-Runs inside the container before Claude Code:
+Runs inside the container before the agent:
 1. `cd /target && git submodule update --init --recursive` (if applicable)
 2. Compile with ASAN: `CC=clang CFLAGS="-fsanitize=address -g -O1 -fno-omit-frame-pointer" ./configure --disable-shared && make -j$(nproc)`
 3. If compilation fails, write a failed-compilation result to stdout as JSON and exit 1
 4. Set `ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:print_stacktrace=1`
-5. Invoke Claude Code (see below)
+5. Invoke the agent (see below)
 
-### Claude Code invocation
+### Agent loop invocation
 
 ```bash
-claude \
-  --print \
-  --model "${WORKER_MODEL:-claude-opus-4-6}" \
-  --allowedTools "Bash,Read" \
-  --disallowedTools "WebFetch,WebSearch" \
-  --max-turns "${MAX_TURNS:-50}" \
-  --output-format json \
-  --system-prompt "$(cat /prompts/worker-system.txt)" \
-  --prompt "$(cat /prompts/worker-task.txt)"
+python3 /agent/run.py
 ```
 
-`--print` is the headless/non-interactive flag (formerly `--print`, equivalent to `-p`).
+Environment variables:
+- `MODEL` — litellm model string (e.g., `anthropic/claude-opus-4-6`, `openai/gpt-4o`)
+- `MAX_TURNS` — max agent iterations (default 50)
+- `TASK_PROMPT` — rendered task prompt
+
+The agent loop (`/agent/loop.py`) implements a standard ReAct pattern:
+1. Call `litellm.completion(model=MODEL, messages=..., tools=..., tool_choice="auto")`
+2. If response contains tool_calls: execute each tool, append results, loop
+3. If no tool_calls: extract final JSON verdict from response
 
 ### Worker system prompt (`worker-system.txt`)
 
@@ -239,8 +239,8 @@ docker run \
   -v "{repo_path}:/target/src:ro" \      # source read-only
   -v "{binary_path}:/target/bin:ro" \    # pre-compiled binary read-only
   -v "{prompts_path}:/prompts:ro" \
-  -e "ANTHROPIC_API_KEY={api_key}" \
-  -e "WORKER_MODEL={model}" \
+  # Provider API keys are passed through from orchestrator based on configured model
+  -e "MODEL={model}" \
   -e "MAX_TURNS={max_turns}" \
   -e "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:print_stacktrace=1" \
   --security-opt no-new-privileges \
@@ -251,7 +251,7 @@ docker run \
 ### Network policy
 
 Create a Docker bridge network `vuln-harness-net` with:
-- Outbound HTTPS (443) to `api.anthropic.com` only, enforced via iptables rules applied at network creation
+- Outbound HTTPS (443) to the configured model provider API endpoint(s) only, enforced via iptables rules applied at network creation
 - All other egress blocked
 - Inter-container communication disabled (`--icc=false` on the daemon or network-level isolation)
 - Implementation: custom Docker network + iptables OUTPUT chain rules, or OpenShift NetworkPolicy in production
@@ -268,7 +268,7 @@ Hard timeout: 30 minutes per container (`docker run --timeout` or orchestrator-s
 Extract structured crash metadata from raw container output. Assign severity tier. Prepare input for validation agent.
 
 ### Input
-Raw JSON from Claude Code `--output-format json` (the agent's final output object).
+Raw JSON from the agent's final output object.
 
 ### ASAN crash taxonomy (severity tiers)
 
@@ -317,7 +317,7 @@ Human must confirm or override. System label: `cvss_estimate` not `cvss_score`.
 Filter false positives and minor/inconclusive findings. Prioritize what reaches human review. Modeled directly on Anthropic's "I received the following bug report. Can you please confirm if it's real and interesting?" final pass.
 
 ### Implementation
-Single `anthropic.messages.create` call per finding candidate. Not a container. Model: `claude-opus-4-6`.
+Single `litellm.acompletion()` call per finding candidate. Not a container. Model: configurable, default `anthropic/claude-opus-4-6`.
 
 ### Validation prompt template
 ```
@@ -508,9 +508,9 @@ exclude_patterns:
 max_files_to_scan: 100        # scan top N ranked files, null = all
 
 # Agent
-ranking_model: claude-opus-4-6
-worker_model: claude-opus-4-6
-validation_model: claude-opus-4-6
+ranking_model: anthropic/claude-opus-4-6
+worker_model: anthropic/claude-opus-4-6
+validation_model: anthropic/claude-opus-4-6
 max_turns_per_worker: 50
 
 # Parallelism
@@ -538,9 +538,56 @@ findings_encryption_key_env: FINDINGS_ENC_KEY  # name of env var holding AES key
 ## Environment variables (never in config file)
 
 ```
-ANTHROPIC_API_KEY          Required. Anthropic API key.
+ANTHROPIC_API_KEY          Required if using Anthropic models.
+OPENAI_API_KEY             Required if using OpenAI models.
+GOOGLE_API_KEY             Required if using Google models.
 FINDINGS_ENC_KEY           Required. 32-byte AES-256 key, base64-encoded.
 REDIS_PASSWORD             Optional.
 POSTGRES_PASSWORD          Required in production.
 WORKER_MODEL_OVERRIDE      Optional. Overrides worker_model for a single run.
+```
+
+---
+
+## Worker container architecture
+
+```
+┌──────────────────────────────────────────────┐
+│  Worker Container (Stage 3)                  │
+│                                              │
+│  entrypoint.sh                               │
+│  ├── Copy source → /workspace/src            │
+│  ├── Compile with ASAN (clang)               │
+│  └── exec python3 /agent/run.py              │
+│                                              │
+│  agent/run.py                                │
+│  ├── Load system prompt + task prompt         │
+│  ├── ReAct loop (agent/loop.py):             │
+│  │   ├── litellm.completion(model=...)  ◄──── any provider API
+│  │   ├── Parse tool_calls                    │
+│  │   ├── Execute: bash() or read_file()      │
+│  │   ├── Feed results back → loop            │
+│  │   └── No tool_calls → extract verdict     │
+│  └── Output JSON verdict to stdout           │
+│                                              │
+│  Tools available to agent:                   │
+│  ├── bash(command) — run shell commands       │
+│  └── read_file(path) — read file contents    │
+│                                              │
+│  Network: egress only to model provider API  │
+│  Filesystem: /workspace (rw), /target (ro)   │
+└──────────────────────────────────────────────┘
+```
+
+## Provider flexibility
+
+```
+Config: worker_model                    Env vars (any one):
+├── anthropic/claude-opus-4-6    →      ANTHROPIC_API_KEY
+├── anthropic/claude-sonnet-4-6  →      ANTHROPIC_API_KEY
+├── openai/gpt-4o               →      OPENAI_API_KEY
+├── openai/o3                   →      OPENAI_API_KEY
+├── gemini/gemini-2.5-pro       →      GOOGLE_API_KEY
+├── ollama/llama3               →      (no key, local)
+└── any litellm-supported model →      provider's key
 ```

@@ -37,11 +37,13 @@ async def _run_container(
         "--tmpfs", "/tmp:size=4g",
         "-v", f"{repo}:/target/src:ro",
     ]
-    # Only inject API key if using direct API mode; Claude Code handles its own auth
-    if config.anthropic_api_key:
-        cmd.extend(["-e", f"ANTHROPIC_API_KEY={config.anthropic_api_key}"])
+    # Pass through provider API keys from environment (litellm reads them automatically)
+    for key_name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"):
+        key_val = os.environ.get(key_name)
+        if key_val:
+            cmd.extend(["-e", f"{key_name}={key_val}"])
     cmd += [
-        "-e", f"WORKER_MODEL={config.worker_model}",
+        "-e", f"MODEL={config.worker_model}",
         "-e", f"MAX_TURNS={config.max_turns_per_worker}",
         "-e", f"FILE_PATH={file_path}",
         "-e", f"PROJECT_NAME={config.project_name}",

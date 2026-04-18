@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -52,15 +51,12 @@ class Config(BaseSettings):
     exclude_patterns: list[str] = []
     max_files_to_scan: int | None = None
 
-    # Agent
-    ranking_model: str = "claude-opus-4-6"
-    worker_model: str = "claude-opus-4-6"
-    validation_model: str = "claude-opus-4-6"
+    # Agent — model strings use litellm format: "provider/model"
+    # e.g. "anthropic/claude-opus-4-6", "openai/gpt-4o", "ollama/llama3"
+    ranking_model: str = "anthropic/claude-opus-4-6"
+    worker_model: str = "anthropic/claude-opus-4-6"
+    validation_model: str = "anthropic/claude-opus-4-6"
     max_turns_per_worker: int = 50
-
-    # LLM backend: True = use `claude --print` (free with Max subscription),
-    #              False = use direct Anthropic API (requires ANTHROPIC_API_KEY)
-    use_claude_code: bool = True
 
     # Parallelism
     max_parallel_workers: int = 4
@@ -81,8 +77,8 @@ class Config(BaseSettings):
     run_output_dir: Path = Path("./runs")
     findings_encryption_key_env: str = "FINDINGS_ENC_KEY"
 
-    # Secrets — optional, only required when use_claude_code=False
-    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    # Secrets — API keys are read from env vars by litellm automatically
+    # (ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, etc.)
     findings_enc_key: str | None = Field(default=None, alias="FINDINGS_ENC_KEY")
 
     @classmethod
@@ -92,10 +88,3 @@ class Config(BaseSettings):
             kwargs.get("env_settings"),
             YamlSettingsSource(settings_cls),
         )
-
-    @model_validator(mode="after")
-    def _validate_secrets(self):
-        if not self.use_claude_code and not self.anthropic_api_key:
-            print("ERROR: ANTHROPIC_API_KEY is required when use_claude_code=false", file=sys.stderr)
-            raise SystemExit(1)
-        return self

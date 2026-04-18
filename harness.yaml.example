@@ -14,15 +14,12 @@ exclude_patterns:
   - "*/third_party/*"
 max_files_to_scan: 100
 
-# Agent
-ranking_model: claude-opus-4-6
-worker_model: claude-opus-4-6
-validation_model: claude-opus-4-6
+# Agent — model strings use litellm format: "provider/model"
+# Examples: anthropic/claude-opus-4-6, openai/gpt-4o, ollama/llama3
+ranking_model: anthropic/claude-opus-4-6
+worker_model: anthropic/claude-opus-4-6
+validation_model: anthropic/claude-opus-4-6
 max_turns_per_worker: 50
-
-# LLM backend: true = use Claude Code CLI (free with Max subscription, no API key needed)
-#              false = use direct Anthropic API (requires ANTHROPIC_API_KEY env var)
-use_claude_code: true
 
 # Parallelism
 max_parallel_workers: 4

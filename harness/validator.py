@@ -1,4 +1,4 @@
-"""Stage 5: validation agent via LLM (Claude Code CLI or direct API)."""
+"""Stage 5: validation agent via LLM (provider-agnostic via litellm)."""
 
 from __future__ import annotations
 
@@ -56,9 +56,6 @@ async def validate_finding(
     finding_json = json.dumps(finding_dict, indent=2, default=str)
     prompt = VALIDATION_PROMPT.format(finding_json=finding_json)
 
-    use_claude_code = getattr(config, "use_claude_code", True)
-    api_key = getattr(config, "anthropic_api_key", None)
-
     last_exc = None
     for attempt in range(3):
         try:
@@ -66,8 +63,6 @@ async def validate_finding(
                 prompt=prompt,
                 model=config.validation_model,
                 max_tokens=2048,
-                use_claude_code=use_claude_code,
-                api_key=api_key,
             )
             break
         except Exception as e:
@@ -84,7 +79,7 @@ async def validate_finding(
         payload={
             "stage": "validation",
             "model": config.validation_model,
-            "backend": "claude_code" if use_claude_code else "api",
+            "backend": "litellm",
             "input_tokens": response.input_tokens,
             "output_tokens": response.output_tokens,
             "cost_usd": round(response.cost_usd, 6),

@@ -1,4 +1,4 @@
-"""Stage 1: file ranking via LLM (Claude Code CLI or direct API)."""
+"""Stage 1: file ranking via LLM (provider-agnostic via litellm)."""
 
 from __future__ import annotations
 
@@ -103,13 +103,8 @@ async def rank_files(
     ranking_model: str,
     max_files_to_scan: int | None,
     audit: AuditLog,
-    use_claude_code: bool = True,
-    api_key: str | None = None,
 ) -> list[RankedFile]:
-    """Rank source files by vulnerability likelihood.
-
-    Routes through Claude Code CLI (default) or direct Anthropic API.
-    """
+    """Rank source files by vulnerability likelihood via litellm."""
     all_files = _enumerate_source_files(repo_path, exclude_patterns)
 
     if not all_files:
@@ -131,8 +126,6 @@ async def rank_files(
                     prompt=prompt,
                     model=ranking_model,
                     max_tokens=4096,
-                    use_claude_code=use_claude_code,
-                    api_key=api_key,
                 )
                 break
             except Exception as e:
@@ -151,7 +144,7 @@ async def rank_files(
             payload={
                 "stage": "ranking",
                 "model": ranking_model,
-                "backend": "claude_code" if use_claude_code else "api",
+                "backend": "litellm",
                 "input_tokens": response.input_tokens,
                 "output_tokens": response.output_tokens,
                 "cost_usd": round(response.cost_usd, 6),

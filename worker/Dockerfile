@@ -1,7 +1,6 @@
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV NODE_VERSION=20
 
 RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid \
     && echo 'Acquire::Check-Date "false";' >> /etc/apt/apt.conf.d/99no-check-valid \
@@ -22,16 +21,12 @@ RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js (required by Claude Code)
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
 # Jinja2 for prompt rendering in entrypoint
 RUN pip3 install --break-system-packages jinja2
 
-# Claude Code CLI — installed at build time, no credential needed
-RUN npm install -g @anthropic-ai/claude-code
+# Agent loop dependencies (litellm for provider-agnostic LLM access)
+COPY agent/ /agent/
+RUN pip3 install --break-system-packages --no-cache-dir -r /agent/requirements.txt
 
 # Create non-root user (UID 1001 — 1000 may be taken in base image)
 RUN useradd -m -u 1001 researcher

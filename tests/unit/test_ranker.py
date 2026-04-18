@@ -83,7 +83,7 @@ async def test_api_failure_retries_then_raises(audit_log: AuditLog):
                     run_id="test-run",
                     repo_path=repo,
                     exclude_patterns=[],
-                    ranking_model="claude-opus-4-6",
+                    ranking_model="anthropic/claude-opus-4-6",
                     max_files_to_scan=None,
                     audit=audit_log,
                 )
@@ -126,7 +126,7 @@ async def test_rank_files_end_to_end(
             run_id="test-run",
             repo_path=tmp_path / "repo",
             exclude_patterns=[],
-            ranking_model="claude-opus-4-6",
+            ranking_model="anthropic/claude-opus-4-6",
             max_files_to_scan=None,
             audit=audit_log,
         )

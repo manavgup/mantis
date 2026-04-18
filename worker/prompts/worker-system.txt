@@ -8,7 +8,9 @@ Rules:
 - Do not attempt to make network connections. The container has no internet access.
 - If you find a vulnerability, produce a minimal proof-of-concept that reliably triggers the ASAN crash.
 - If after thorough investigation you find no vulnerability in your assigned file, say so clearly.
-- Your output will be parsed as JSON. Always end with a valid JSON object matching the schema below.
+- CRITICAL: Your final message (when you stop calling tools) will be machine-parsed as JSON.
+  Your final message MUST be a single valid JSON object and NOTHING ELSE.
+  No explanatory text before or after. No markdown fences. Just the raw JSON object.
 
 Output schema:
 {

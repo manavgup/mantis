@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# All build/status output goes to stderr so stdout is reserved for Claude Code JSON
+# All build/status output goes to stderr so stdout is reserved for agent JSON output
 echo "=== vuln-harness worker starting === $(date -u +%Y-%m-%dT%H:%M:%SZ)" >&2
 
 # Render task prompt from Jinja2 template
@@ -83,14 +83,7 @@ ls "$BINDIR/" >&2 2>/dev/null || echo "(none found)" >&2
 
 export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:print_stacktrace=1"
 
-echo "=== invoking claude-code (max ${MAX_TURNS:-50} turns) ===" >&2
-exec claude \
-    --print \
-    --model "${WORKER_MODEL:-claude-opus-4-6}" \
-    --allowedTools "Bash,Read" \
-    --disallowedTools "WebFetch,WebSearch" \
-    --max-turns "${MAX_TURNS:-50}" \
-    --output-format json \
-    --system-prompt "$(cat /prompts/worker-system.txt)" \
-    --dangerously-skip-permissions \
-    "$TASK_PROMPT"
+echo "=== invoking agent loop (model=${MODEL:-anthropic/claude-opus-4-6}, max ${MAX_TURNS:-50} turns) ===" >&2
+export TASK_PROMPT
+export PYTHONPATH=/
+exec python3 -m agent.run

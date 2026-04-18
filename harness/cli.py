@@ -54,8 +54,6 @@ def rank(config_path: str):
         ranking_model=cfg.ranking_model,
         max_files_to_scan=cfg.max_files_to_scan,
         audit=audit,
-        use_claude_code=cfg.use_claude_code,
-        api_key=cfg.anthropic_api_key,
     ))
 
     write_rankings_json(
@@ -118,8 +116,6 @@ def run(config_path: str):
         ranking_model=cfg.ranking_model,
         max_files_to_scan=cfg.max_files_to_scan,
         audit=audit,
-        use_claude_code=cfg.use_claude_code,
-        api_key=cfg.anthropic_api_key,
     ))
     write_rankings_json(
         run_dir=run_dir, run_id=run_id, repo_url=cfg.repo_url,
