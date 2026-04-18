@@ -19,6 +19,9 @@ exclude_patterns:
   - "*/third_party/*"
 max_files_to_scan: 100
 
+# Ranking strategy: "static" (regex-based, free, instant) | "llm" (LLM-based, ~$0.07/batch)
+ranking_strategy: static
+
 # Agent — model strings use litellm format: "provider/model"
 # Examples: anthropic/claude-opus-4-6, openai/gpt-4o, ollama/llama3
 ranking_model: anthropic/claude-opus-4-6

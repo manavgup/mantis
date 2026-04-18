@@ -50,6 +50,9 @@ class Config(BaseSettings):
     # Build
     configure_flags: str = ""  # extra flags for ./configure (e.g. FFmpeg's --extra-cflags)
 
+    # Ranking strategy: "static" (regex-based, free, instant) | "llm" (LLM-based)
+    ranking_strategy: str = "static"
+
     # Scan scope
     exclude_patterns: list[str] = []
     max_files_to_scan: int | None = None

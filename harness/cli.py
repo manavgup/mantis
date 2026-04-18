@@ -54,6 +54,7 @@ def rank(config_path: str):
         ranking_model=cfg.ranking_model,
         max_files_to_scan=cfg.max_files_to_scan,
         audit=audit,
+        strategy=cfg.ranking_strategy,
     ))
 
     write_rankings_json(
@@ -78,9 +79,130 @@ def rank(config_path: str):
     click.echo(f"Run ID: {run_id}")
 
 
+def _clone_repo(cfg, run_dir: Path) -> Path:
+    """Clone or resolve repo path. Returns local path."""
+    repo_path = Path(cfg.repo_url) if Path(cfg.repo_url).exists() else None
+    if repo_path is None:
+        import subprocess
+        repo_path = run_dir / "repo"
+        if not repo_path.exists():
+            click.echo(f"Cloning {cfg.repo_url} ...")
+            subprocess.run(
+                ["git", "clone", "--depth", "1", "--branch", cfg.repo_commit, cfg.repo_url, str(repo_path)],
+                check=True,
+            )
+    return repo_path
+
+
 @cli.command()
 @click.option("--config", "config_path", default="./harness.yaml", help="Path to harness.yaml")
-def run(config_path: str):
+def build(config_path: str):
+    """Compile target with ASAN in a single container. Saves binaries for worker reuse."""
+    os.environ.setdefault("HARNESS_CONFIG", config_path)
+    from harness.config import Config
+
+    cfg = Config()
+    run_id = str(uuid.uuid4())
+    run_dir = cfg.run_output_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    bin_dir = run_dir / "bin"
+    bin_dir.mkdir(exist_ok=True)
+
+    repo_path = _clone_repo(cfg, run_dir)
+    repo_real = os.path.realpath(str(repo_path))
+    bin_real = os.path.realpath(str(bin_dir))
+
+    click.echo(f"Building {cfg.project_name} with ASAN...")
+
+    # Run a build-only container: compile, collect binaries to /output
+    cmd = [
+        "docker", "run", "--rm",
+        "--name", f"builder-{run_id[:12]}",
+        "--memory", f"{cfg.worker_memory_gb}g",
+        "--cpus", str(cfg.worker_cpus),
+        "--tmpfs", "/tmp:size=4g",
+        "-v", f"{repo_real}:/target/src:ro",
+        "-v", f"{bin_real}:/output",
+        "-e", f"BINARY_NAME={cfg.binary_name}",
+        "-e", f"CONFIGURE_FLAGS={cfg.configure_flags}",
+        "--entrypoint", "/bin/bash",
+        cfg.worker_image,
+        "-c", _BUILD_SCRIPT,
+    ]
+
+    import subprocess
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        click.echo(f"Build failed (exit {result.returncode}):")
+        click.echo(result.stderr[-2000:] if len(result.stderr) > 2000 else result.stderr)
+        raise SystemExit(1)
+
+    # List collected binaries
+    binaries = list(bin_dir.iterdir())
+    click.echo(f"Build complete. {len(binaries)} binaries collected:")
+    for b in sorted(binaries):
+        size_mb = b.stat().st_size / (1024 * 1024)
+        click.echo(f"  {b.name} ({size_mb:.1f} MB)")
+    click.echo(f"\nBin dir: {bin_dir}")
+    click.echo(f"Run ID: {run_id}")
+    click.echo(f"\nTo scan: vuln-harness run --config {config_path} --bin-dir {bin_dir}")
+
+
+# Build script executed inside the builder container
+_BUILD_SCRIPT = r"""
+set -euo pipefail
+
+cp -a /target/src /tmp/src
+cd /tmp/src
+git submodule update --init --recursive 2>/dev/null || true
+
+export CC=clang
+export CFLAGS="-fsanitize=address -g -O1 -fno-omit-frame-pointer -fPIC"
+export LDFLAGS="-fsanitize=address"
+
+if [ -n "${CONFIGURE_FLAGS:-}" ]; then
+    CONF_CMD="./configure $CONFIGURE_FLAGS"
+else
+    CONF_CMD="./configure --disable-shared"
+fi
+
+if [ -f ./configure ]; then
+    echo "Build system: configure" >&2
+    eval "$CONF_CMD" >&2 && make -j"$(nproc)" >&2
+elif [ -f ./configure.ac ] || [ -f ./configure.in ]; then
+    echo "Build system: autotools" >&2
+    autoreconf -fi >&2 && eval "$CONF_CMD" >&2 && make -j"$(nproc)" >&2
+elif [ -f CMakeLists.txt ]; then
+    echo "Build system: cmake" >&2
+    mkdir -p build && cd build
+    cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_C_FLAGS="$CFLAGS" -DCMAKE_CXX_FLAGS="$CFLAGS" \
+        -DCMAKE_EXE_LINKER_FLAGS="$LDFLAGS" -DCMAKE_SHARED_LINKER_FLAGS="$LDFLAGS" \
+        -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=OFF .. >&2
+    make -j"$(nproc)" >&2
+    cd ..
+elif [ -f Makefile ] || [ -f makefile ] || [ -f GNUmakefile ]; then
+    echo "Build system: Makefile" >&2
+    make CC=clang CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" -j"$(nproc)" >&2 || true
+fi
+
+# Collect binaries to /output (mounted from host)
+find /tmp/src -type f -executable \
+    ! -name '*.sh' ! -name '*.py' ! -name '*.pl' ! -name '*.cmake' \
+    ! -name '*.sample' ! -name '*.so*' ! -name '*.o' \
+    ! -path '*/CMakeFiles/*' ! -path '*/.git/*' \
+    -exec cp -n {} /output/ \; 2>/dev/null || true
+
+echo "=== collected binaries ===" >&2
+ls /output/ >&2
+"""
+
+
+@cli.command()
+@click.option("--config", "config_path", default="./harness.yaml", help="Path to harness.yaml")
+@click.option("--bin-dir", "bin_dir", default=None, help="Pre-compiled binaries dir (from 'build' command)")
+def run(config_path: str, bin_dir: str | None):
     """Full pipeline: rank, dispatch workers, parse, validate, report."""
     os.environ.setdefault("HARNESS_CONFIG", config_path)
     from harness.config import Config
@@ -93,18 +215,10 @@ def run(config_path: str):
 
     audit = AuditLog(run_dir / "audit.jsonl")
     audit.write(run_id=run_id, event_type="run_start", actor="orchestrator",
-                payload={"command": "run", "config": config_path})
+                payload={"command": "run", "config": config_path, "bin_dir": bin_dir})
 
     # Step 1: Clone or use local repo
-    repo_path = Path(cfg.repo_url) if Path(cfg.repo_url).exists() else None
-    if repo_path is None:
-        import subprocess
-        repo_path = run_dir / "repo"
-        click.echo(f"Cloning {cfg.repo_url} ...")
-        subprocess.run(
-            ["git", "clone", "--depth", "1", "--branch", cfg.repo_commit, cfg.repo_url, str(repo_path)],
-            check=True,
-        )
+    repo_path = _clone_repo(cfg, run_dir)
 
     # Step 2: Rank files
     click.echo("Stage 1: Ranking files...")
@@ -116,6 +230,7 @@ def run(config_path: str):
         ranking_model=cfg.ranking_model,
         max_files_to_scan=cfg.max_files_to_scan,
         audit=audit,
+        strategy=cfg.ranking_strategy,
     ))
     write_rankings_json(
         run_dir=run_dir, run_id=run_id, repo_url=cfg.repo_url,
@@ -131,9 +246,12 @@ def run(config_path: str):
     click.echo(f"  Enqueued {len(ranked)} jobs")
 
     # Step 4: Dispatch workers
-    click.echo("Stage 3: Dispatching workers...")
+    if bin_dir:
+        click.echo(f"Stage 3: Dispatching workers (pre-compiled: {bin_dir})...")
+    else:
+        click.echo("Stage 3: Dispatching workers (compiling per container)...")
     from harness.dispatcher import dispatch_run
-    results = asyncio.run(dispatch_run(run_id, cfg, audit))
+    results = asyncio.run(dispatch_run(run_id, cfg, audit, repo_path=repo_path, bin_path=bin_dir))
     click.echo(f"  Completed {len(results)} containers")
 
     # Step 5: Parse and validate

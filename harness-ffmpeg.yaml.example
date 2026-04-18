@@ -14,11 +14,14 @@ configure_flags: >-
   --cc=clang
   --extra-cflags="-fsanitize=address -g -O1 -fno-omit-frame-pointer"
   --extra-ldflags="-fsanitize=address"
-  --disable-x86asm
+  --disable-asm
   --disable-doc
   --disable-ffplay
   --disable-network
   --disable-shared
+
+# Ranking — static analysis reads actual code, free and instant
+ranking_strategy: static
 
 # Scan scope — FFmpeg has ~2000 C files; focus on highest-risk
 exclude_patterns:

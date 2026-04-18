@@ -103,6 +103,40 @@ async def rank_files(
     ranking_model: str,
     max_files_to_scan: int | None,
     audit: AuditLog,
+    strategy: str = "static",
+) -> list[RankedFile]:
+    """Rank source files by vulnerability likelihood.
+
+    Routes to static analysis or LLM-based ranking based on strategy.
+    """
+    if strategy == "static":
+        from harness.static_ranker import rank_files_static
+
+        return await rank_files_static(
+            run_id=run_id,
+            repo_path=repo_path,
+            exclude_patterns=exclude_patterns,
+            max_files_to_scan=max_files_to_scan,
+            audit=audit,
+        )
+
+    return await _rank_files_llm(
+        run_id=run_id,
+        repo_path=repo_path,
+        exclude_patterns=exclude_patterns,
+        ranking_model=ranking_model,
+        max_files_to_scan=max_files_to_scan,
+        audit=audit,
+    )
+
+
+async def _rank_files_llm(
+    run_id: str,
+    repo_path: Path,
+    exclude_patterns: list[str],
+    ranking_model: str,
+    max_files_to_scan: int | None,
+    audit: AuditLog,
 ) -> list[RankedFile]:
     """Rank source files by vulnerability likelihood via litellm."""
     all_files = _enumerate_source_files(repo_path, exclude_patterns)
@@ -113,11 +147,14 @@ async def rank_files(
     all_ranked: list[RankedFile] = []
     total_cost = 0.0
 
-    batch_size = 200
+    batch_size = 100
     for i in range(0, len(all_files), batch_size):
         batch = all_files[i : i + batch_size]
         file_list = "\n".join(batch)
         prompt = _RANKING_PROMPT_TEMPLATE.format(file_list=file_list)
+
+        # Each file entry in the JSON response needs ~30-40 tokens
+        response_tokens = max(4096, len(batch) * 50)
 
         last_exc = None
         for attempt in range(3):
@@ -125,7 +162,7 @@ async def rank_files(
                 response = await call_llm(
                     prompt=prompt,
                     model=ranking_model,
-                    max_tokens=4096,
+                    max_tokens=response_tokens,
                 )
                 break
             except Exception as e:

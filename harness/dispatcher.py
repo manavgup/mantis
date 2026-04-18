@@ -21,6 +21,7 @@ async def _run_container(
     config,
     audit: AuditLog,
     repo_path: str | None = None,
+    bin_path: str | None = None,
 ) -> tuple[str, str, str, int]:
     """Launch a single worker container. Returns (job_id, stdout, stderr, exit_code)."""
     import os
@@ -37,6 +38,10 @@ async def _run_container(
         "--tmpfs", "/tmp:size=4g",
         "-v", f"{repo}:/target/src:ro",
     ]
+    # Mount pre-compiled binaries if available (skips compilation in entrypoint)
+    if bin_path:
+        bin_real = os.path.realpath(bin_path)
+        cmd.extend(["-v", f"{bin_real}:/target/bin:ro"])
     # Pass through provider API keys from environment (litellm reads them automatically)
     for key_name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"):
         key_val = os.environ.get(key_name)
@@ -179,6 +184,7 @@ async def dispatch_run(
     config,
     audit: AuditLog,
     repo_path: str | None = None,
+    bin_path: str | None = None,
 ) -> list[tuple[str, str, str, int]]:
     """Dispatch all queued jobs with concurrency control.
 
@@ -190,7 +196,7 @@ async def dispatch_run(
     async def worker(job):
         async with sem:
             result = await _run_container(
-                job.job_id, run_id, job.file_path, config, audit, repo_path,
+                job.job_id, run_id, job.file_path, config, audit, repo_path, bin_path,
             )
             results.append(result)
 
