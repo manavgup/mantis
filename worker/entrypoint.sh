@@ -35,13 +35,20 @@ emit_build_failure() {
     exit 1
 }
 
+# Build configure command: use CONFIGURE_FLAGS if provided, else default --disable-shared
+if [ -n "${CONFIGURE_FLAGS:-}" ]; then
+    CONF_CMD="./configure $CONFIGURE_FLAGS"
+else
+    CONF_CMD="./configure --disable-shared"
+fi
+
 # Try autotools first (configure or configure.ac)
 if [ -f ./configure ]; then
-    echo "Build system: autotools (configure)" >&2
-    BUILD_OUTPUT=$(./configure --disable-shared 2>&1 && make -j"$(nproc)" 2>&1) || emit_build_failure "$BUILD_OUTPUT"
+    echo "Build system: configure (flags: ${CONFIGURE_FLAGS:---disable-shared})" >&2
+    BUILD_OUTPUT=$(eval "$CONF_CMD" 2>&1 && make -j"$(nproc)" 2>&1) || emit_build_failure "$BUILD_OUTPUT"
 elif [ -f ./configure.ac ] || [ -f ./configure.in ]; then
     echo "Build system: autotools (needs autoreconf)" >&2
-    BUILD_OUTPUT=$(autoreconf -fi 2>&1 && ./configure --disable-shared 2>&1 && make -j"$(nproc)" 2>&1) || emit_build_failure "$BUILD_OUTPUT"
+    BUILD_OUTPUT=$(autoreconf -fi 2>&1 && eval "$CONF_CMD" 2>&1 && make -j"$(nproc)" 2>&1) || emit_build_failure "$BUILD_OUTPUT"
 elif [ -f CMakeLists.txt ]; then
     echo "Build system: cmake" >&2
     mkdir -p build && cd build

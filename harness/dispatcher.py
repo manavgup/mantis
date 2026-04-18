@@ -49,6 +49,7 @@ async def _run_container(
         "-e", f"PROJECT_NAME={config.project_name}",
         "-e", f"PROJECT_DESCRIPTION={config.project_description}",
         "-e", f"BINARY_NAME={config.binary_name}",
+        "-e", f"CONFIGURE_FLAGS={config.configure_flags}",
         "-e", "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:print_stacktrace=1",
         "--security-opt", "no-new-privileges",
         "--cap-drop", "ALL",

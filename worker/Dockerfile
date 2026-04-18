@@ -15,6 +15,7 @@ RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-
     automake \
     libtool \
     pkg-config \
+    nasm \
     git \
     python3 \
     python3-pip \
