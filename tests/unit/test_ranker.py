@@ -86,6 +86,7 @@ async def test_api_failure_retries_then_raises(audit_log: AuditLog):
                     ranking_model="anthropic/claude-opus-4-6",
                     max_files_to_scan=None,
                     audit=audit_log,
+                    strategy="llm",
                 )
 
     assert mock_call.call_count == 3
