@@ -28,7 +28,7 @@ class MockConfig:
     max_parallel_workers: int = 2
     container_timeout_seconds: int = 10
     max_run_spend_usd: float = 100.0
-    anthropic_api_key: str = "test-key"
+    # No provider-specific API key field — litellm reads from env vars
     project_name: str = "test"
     project_description: str = "test project"
     binary_name: str = "testbin"

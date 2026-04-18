@@ -22,8 +22,8 @@ def minimal_yaml(tmp_path: Path) -> Path:
     return p
 
 
-def test_loads_minimal_valid_config_claude_code_mode(minimal_yaml: Path, monkeypatch):
-    """With use_claude_code=true (default), no API key needed."""
+def test_loads_minimal_valid_config(minimal_yaml: Path, monkeypatch):
+    """Config loads with defaults — litellm model strings, no use_claude_code flag."""
     monkeypatch.setenv("HARNESS_CONFIG", str(minimal_yaml))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("FINDINGS_ENC_KEY", raising=False)
@@ -33,51 +33,33 @@ def test_loads_minimal_valid_config_claude_code_mode(minimal_yaml: Path, monkeyp
     cfg = Config()
     assert cfg.repo_url == "https://github.com/test/repo"
     assert cfg.binary_name == "testbin"
-    assert cfg.use_claude_code is True
-    assert cfg.anthropic_api_key is None
+    assert cfg.ranking_model == "anthropic/claude-opus-4-6"
+    assert cfg.worker_model == "anthropic/claude-opus-4-6"
+    assert cfg.validation_model == "anthropic/claude-opus-4-6"
 
 
-def test_api_mode_requires_api_key(tmp_path: Path, monkeypatch):
-    """With use_claude_code=false, ANTHROPIC_API_KEY is required."""
+def test_custom_model_strings(tmp_path: Path, monkeypatch):
+    """Config accepts any litellm model string."""
     data = {
         "repo_url": "https://github.com/test/repo",
         "binary_name": "testbin",
         "project_name": "testproject",
         "project_description": "A test project",
         "postgres_url": "postgresql://localhost:5432/test",
-        "use_claude_code": False,
+        "ranking_model": "openai/gpt-4o",
+        "worker_model": "ollama/llama3",
+        "validation_model": "anthropic/claude-sonnet-4-6",
     }
     p = tmp_path / "harness.yaml"
     p.write_text(yaml.dump(data))
     monkeypatch.setenv("HARNESS_CONFIG", str(p))
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-
-    from harness.config import Config
-
-    with pytest.raises(SystemExit):
-        Config()
-
-
-def test_api_mode_works_with_key(tmp_path: Path, monkeypatch):
-    """With use_claude_code=false and API key set, config loads fine."""
-    data = {
-        "repo_url": "https://github.com/test/repo",
-        "binary_name": "testbin",
-        "project_name": "testproject",
-        "project_description": "A test project",
-        "postgres_url": "postgresql://localhost:5432/test",
-        "use_claude_code": False,
-    }
-    p = tmp_path / "harness.yaml"
-    p.write_text(yaml.dump(data))
-    monkeypatch.setenv("HARNESS_CONFIG", str(p))
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-key")
 
     from harness.config import Config
 
     cfg = Config()
-    assert cfg.use_claude_code is False
-    assert cfg.anthropic_api_key == "sk-test-key"
+    assert cfg.ranking_model == "openai/gpt-4o"
+    assert cfg.worker_model == "ollama/llama3"
+    assert cfg.validation_model == "anthropic/claude-sonnet-4-6"
 
 
 def test_missing_required_field_raises(tmp_path: Path, monkeypatch):

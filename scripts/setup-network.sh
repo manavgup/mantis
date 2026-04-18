@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Create vuln-harness-net Docker bridge network and restrict egress to api.anthropic.com:443 only.
+# Create vuln-harness-net Docker bridge network and restrict egress to allowed LLM provider APIs only.
 # Must be run as root (for iptables). Idempotent — safe to run multiple times.
+#
+# Configurable via ALLOWED_API_DOMAINS env var (space-separated).
+# Default: api.anthropic.com api.openai.com generativelanguage.googleapis.com
 set -euo pipefail
 
 DRY_RUN=false
 NETWORK_NAME="vuln-harness-net"
 BRIDGE_IF="vulnharness0"
+ALLOWED_API_DOMAINS="${ALLOWED_API_DOMAINS:-api.anthropic.com api.openai.com generativelanguage.googleapis.com}"
 
 if [[ "${1:-}" == "--dry-run" ]]; then
     DRY_RUN=true
@@ -22,6 +26,7 @@ run_cmd() {
 }
 
 echo "=== Setting up vuln-harness network isolation ==="
+echo "Allowed API domains: $ALLOWED_API_DOMAINS"
 
 # Step 1: Create Docker bridge network (if not exists)
 if docker network inspect "$NETWORK_NAME" &>/dev/null; then
@@ -35,13 +40,20 @@ else
         "$NETWORK_NAME"
 fi
 
-# Step 2: Resolve api.anthropic.com IP(s)
-echo "Resolving api.anthropic.com..."
-ANTHROPIC_IPS=$(dig +short api.anthropic.com | grep -E '^[0-9]+\.' | head -5)
-if [[ -z "$ANTHROPIC_IPS" ]]; then
-    echo "WARNING: Could not resolve api.anthropic.com. Falling back to DNS name."
-    echo "  Network isolation may not work correctly without resolved IPs."
-fi
+# Step 2: Resolve allowed API domain IPs
+ALL_IPS=""
+for domain in $ALLOWED_API_DOMAINS; do
+    echo "Resolving $domain..."
+    DOMAIN_IPS=$(dig +short "$domain" | grep -E '^[0-9]+\.' | head -5)
+    if [[ -z "$DOMAIN_IPS" ]]; then
+        echo "  WARNING: Could not resolve $domain. Skipping."
+    else
+        ALL_IPS="$ALL_IPS $DOMAIN_IPS"
+        for ip in $DOMAIN_IPS; do
+            echo "  Resolved: $ip"
+        done
+    fi
+done
 
 # Step 3: Apply iptables rules
 echo "Applying iptables egress rules on $BRIDGE_IF..."
@@ -50,14 +62,14 @@ echo "Applying iptables egress rules on $BRIDGE_IF..."
 run_cmd iptables -C FORWARD -i "$BRIDGE_IF" -j DROP 2>/dev/null \
     || run_cmd iptables -I FORWARD -i "$BRIDGE_IF" -j DROP
 
-# Allow HTTPS to api.anthropic.com
-for ip in $ANTHROPIC_IPS; do
+# Allow HTTPS to each resolved API endpoint
+for ip in $ALL_IPS; do
     run_cmd iptables -C FORWARD -i "$BRIDGE_IF" -d "$ip" -p tcp --dport 443 -j ACCEPT 2>/dev/null \
         || run_cmd iptables -I FORWARD -i "$BRIDGE_IF" -d "$ip" -p tcp --dport 443 -j ACCEPT
-    echo "  Allowed: $ip:443 (api.anthropic.com)"
+    echo "  Allowed: $ip:443"
 done
 
-# Allow DNS for initial resolution (needed by the Anthropic SDK)
+# Allow DNS for initial resolution
 run_cmd iptables -C FORWARD -i "$BRIDGE_IF" -p udp --dport 53 -j ACCEPT 2>/dev/null \
     || run_cmd iptables -I FORWARD -i "$BRIDGE_IF" -p udp --dport 53 -j ACCEPT
 
@@ -75,5 +87,5 @@ fi
 
 echo ""
 echo "=== Setup complete ==="
-echo "Containers on $NETWORK_NAME can reach api.anthropic.com:443 only."
+echo "Containers on $NETWORK_NAME can reach allowed API endpoints only."
 echo "All other egress is blocked. Inter-container communication is disabled."

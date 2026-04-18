@@ -1,4 +1,4 @@
-"""Tests for harness.validator — validation agent via LLM."""
+"""Tests for harness.validator — validation agent via litellm."""
 
 from __future__ import annotations
 
@@ -17,9 +17,7 @@ from harness.validator import validate_finding
 
 @dataclass
 class MockConfig:
-    validation_model: str = "claude-opus-4-6"
-    use_claude_code: bool = True
-    anthropic_api_key: str | None = None
+    validation_model: str = "anthropic/claude-opus-4-6"
 
 
 @pytest.fixture()
