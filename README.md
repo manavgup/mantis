@@ -1,8 +1,3 @@
-# IBM Enterprise Vulnerability Harness (vuln-harness)
-
-An autonomous defensive security research tool that finds, validates, and reports vulnerabilities in open-source C/C++ software. It uses Claude Code as the agentic runtime inside isolated Docker containers, following the five-stage Anthropic methodology: file-ranking pre-pass, parallel isolated worker containers with AddressSanitizer verification, PoC generation, and validation agent filtering.
-
-Built for enterprise use in regulated industries including financial services and federal government. Satisfies NIST frameworks, applicable regulatory requirements, and IBM security standards with a tamper-evident SHA-3 hash-chained audit log designed for watsonx.governance ingestion.
 
 ## Prerequisites
 
