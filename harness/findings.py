@@ -78,7 +78,9 @@ async def ensure_run_exists(
             VALUES ($1, $2, $3, NOW(), 'running')
             ON CONFLICT (run_id) DO NOTHING
             """,
-            uuid.UUID(run_id), repo_url, repo_commit,
+            uuid.UUID(run_id),
+            repo_url,
+            repo_commit,
         )
     finally:
         await conn.close()
@@ -100,7 +102,10 @@ async def ensure_job_exists(
             VALUES ($1, $2, $3, $4, 'completed')
             ON CONFLICT (job_id) DO NOTHING
             """,
-            uuid.UUID(job_id), uuid.UUID(run_id), file_path, priority_score,
+            uuid.UUID(job_id),
+            uuid.UUID(run_id),
+            file_path,
+            priority_score,
         )
     finally:
         await conn.close()

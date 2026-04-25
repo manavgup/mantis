@@ -7,36 +7,33 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "bash",
-            "description": "Execute a bash command and return its stdout and stderr. Use this to compile code, run binaries, inspect crashes, read ASAN output, and explore the filesystem.",
+            "description": (
+                "Execute a bash command and return its stdout and stderr. "
+                "Use this to compile code, run binaries, inspect crashes, "
+                "read ASAN output, and explore the filesystem."
+            ),
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "The bash command to execute"
-                    }
-                },
-                "required": ["command"]
-            }
-        }
+                "properties": {"command": {"type": "string", "description": "The bash command to execute"}},
+                "required": ["command"],
+            },
+        },
     },
     {
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read the contents of a file. Use this to examine source code, configuration files, and other text files.",
+            "description": (
+                "Read the contents of a file. "
+                "Use this to examine source code, configuration files, and other text files."
+            ),
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "path": {
-                        "type": "string",
-                        "description": "Absolute path to the file to read"
-                    }
-                },
-                "required": ["path"]
-            }
-        }
-    }
+                "properties": {"path": {"type": "string", "description": "Absolute path to the file to read"}},
+                "required": ["path"],
+            },
+        },
+    },
 ]
 
 TOOL_TIMEOUT_SECONDS = 120

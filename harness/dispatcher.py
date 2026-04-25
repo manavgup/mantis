@@ -5,11 +5,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import signal
 from datetime import datetime, timezone
 
 from harness.audit import AuditLog
-from harness.queue import dequeue_job, get_run_spend, increment_spend, update_job_status
+from harness.queue import dequeue_job, get_run_spend, update_job_status
 
 logger = logging.getLogger(__name__)
 
@@ -24,19 +23,25 @@ async def _run_container(
     bin_path: str | None = None,
 ) -> tuple[str, str, str, int]:
     """Launch a single worker container. Returns (job_id, stdout, stderr, exit_code)."""
-    import os
     repo = repo_path or config.repo_url
     # Resolve symlinks so container runtimes (e.g. Podman on macOS) can access the path.
     # macOS /tmp -> /private/tmp; Podman shares /private but not the symlink.
     repo = os.path.realpath(repo)
 
     cmd = [
-        "docker", "run", "--rm",
-        "--name", f"worker-{job_id[:12]}",
-        "--memory", f"{config.worker_memory_gb}g",
-        "--cpus", str(config.worker_cpus),
-        "--tmpfs", "/tmp:size=4g",
-        "-v", f"{repo}:/target/src:ro",
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        f"worker-{job_id[:12]}",
+        "--memory",
+        f"{config.worker_memory_gb}g",
+        "--cpus",
+        str(config.worker_cpus),
+        "--tmpfs",
+        "/tmp:size=4g",
+        "-v",
+        f"{repo}:/target/src:ro",
     ]
     # Mount pre-compiled binaries if available (skips compilation in entrypoint)
     if bin_path:
@@ -48,16 +53,26 @@ async def _run_container(
         if key_val:
             cmd.extend(["-e", f"{key_name}={key_val}"])
     cmd += [
-        "-e", f"MODEL={config.worker_model}",
-        "-e", f"MAX_TURNS={config.max_turns_per_worker}",
-        "-e", f"FILE_PATH={file_path}",
-        "-e", f"PROJECT_NAME={config.project_name}",
-        "-e", f"PROJECT_DESCRIPTION={config.project_description}",
-        "-e", f"BINARY_NAME={config.binary_name}",
-        "-e", f"CONFIGURE_FLAGS={config.configure_flags}",
-        "-e", "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:print_stacktrace=1",
-        "--security-opt", "no-new-privileges",
-        "--cap-drop", "ALL",
+        "-e",
+        f"MODEL={config.worker_model}",
+        "-e",
+        f"MAX_TURNS={config.max_turns_per_worker}",
+        "-e",
+        f"FILE_PATH={file_path}",
+        "-e",
+        f"PROJECT_NAME={config.project_name}",
+        "-e",
+        f"PROJECT_DESCRIPTION={config.project_description}",
+        "-e",
+        f"BINARY_NAME={config.binary_name}",
+        "-e",
+        f"CONFIGURE_FLAGS={config.configure_flags}",
+        "-e",
+        "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:print_stacktrace=1",
+        "--security-opt",
+        "no-new-privileges",
+        "--cap-drop",
+        "ALL",
         config.worker_image,
     ]
 
@@ -75,7 +90,9 @@ async def _run_container(
     )
 
     await update_job_status(
-        run_id, job_id, config.redis_url,
+        run_id,
+        job_id,
+        config.redis_url,
         status="running",
         started_at=datetime.now(timezone.utc).isoformat(),
     )
@@ -99,7 +116,9 @@ async def _run_container(
             # Use docker kill to forcefully stop the container (more reliable than proc.kill)
             try:
                 kill_proc = await asyncio.create_subprocess_exec(
-                    "docker", "kill", container_name,
+                    "docker",
+                    "kill",
+                    container_name,
                     stdout=asyncio.subprocess.DEVNULL,
                     stderr=asyncio.subprocess.DEVNULL,
                 )
@@ -112,14 +131,14 @@ async def _run_container(
                 pass
             stdout_bytes, stderr_bytes = b"", b""
             try:
-                stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    proc.communicate(), timeout=15
-                )
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=15)
             except (asyncio.TimeoutError, Exception):
                 pass
             exit_code = -1
             await update_job_status(
-                run_id, job_id, config.redis_url,
+                run_id,
+                job_id,
+                config.redis_url,
                 status="timeout",
                 completed_at=datetime.now(timezone.utc).isoformat(),
             )
@@ -142,7 +161,9 @@ async def _run_container(
 
         status = "done" if exit_code == 0 else "failed"
         await update_job_status(
-            run_id, job_id, config.redis_url,
+            run_id,
+            job_id,
+            config.redis_url,
             status=status,
             completed_at=datetime.now(timezone.utc).isoformat(),
         )
@@ -164,7 +185,9 @@ async def _run_container(
     except Exception as e:
         logger.error("Container launch failed for job %s: %s", job_id, e)
         await update_job_status(
-            run_id, job_id, config.redis_url,
+            run_id,
+            job_id,
+            config.redis_url,
             status="failed",
             completed_at=datetime.now(timezone.utc).isoformat(),
             error=str(e),
@@ -196,7 +219,13 @@ async def dispatch_run(
     async def worker(job):
         async with sem:
             result = await _run_container(
-                job.job_id, run_id, job.file_path, config, audit, repo_path, bin_path,
+                job.job_id,
+                run_id,
+                job.file_path,
+                config,
+                audit,
+                repo_path,
+                bin_path,
             )
             results.append(result)
 

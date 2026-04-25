@@ -1,10 +1,7 @@
 """Tests for the static analysis file ranker."""
 
 import asyncio
-import tempfile
 from pathlib import Path
-
-import pytest
 
 from harness.static_ranker import (
     FileSignals,
@@ -16,8 +13,6 @@ from harness.static_ranker import (
     _score_path_heuristic,
     rank_files_static,
 )
-from harness.ranker import RankedFile
-
 
 # ---------------------------------------------------------------------------
 # _score_path_heuristic
@@ -237,9 +232,13 @@ def test_reason_includes_signals():
 
 def test_reason_truncated():
     signals = FileSignals(
-        path="test.c", loc=200,
-        unsafe_calls=99, input_sources=99, memory_mgmt=99,
-        pointer_arith=99, memcpy_count=99,
+        path="test.c",
+        loc=200,
+        unsafe_calls=99,
+        input_sources=99,
+        memory_mgmt=99,
+        pointer_arith=99,
+        memcpy_count=99,
     )
     reason = _build_reason(signals)
     assert len(reason) <= 120
@@ -299,13 +298,15 @@ def test_rank_files_static_integration(tmp_path):
 
     audit = AuditLog(tmp_path / "audit.jsonl")
 
-    result = asyncio.run(rank_files_static(
-        run_id="test-run",
-        repo_path=tmp_path,
-        exclude_patterns=[],
-        max_files_to_scan=None,
-        audit=audit,
-    ))
+    result = asyncio.run(
+        rank_files_static(
+            run_id="test-run",
+            repo_path=tmp_path,
+            exclude_patterns=[],
+            max_files_to_scan=None,
+            audit=audit,
+        )
+    )
 
     assert len(result) == 2
     # parser.c should rank higher than version.h
@@ -322,12 +323,14 @@ def test_rank_files_static_max_files(tmp_path):
 
     audit = AuditLog(tmp_path / "audit.jsonl")
 
-    result = asyncio.run(rank_files_static(
-        run_id="test-run",
-        repo_path=tmp_path,
-        exclude_patterns=[],
-        max_files_to_scan=3,
-        audit=audit,
-    ))
+    result = asyncio.run(
+        rank_files_static(
+            run_id="test-run",
+            repo_path=tmp_path,
+            exclude_patterns=[],
+            max_files_to_scan=3,
+            audit=audit,
+        )
+    )
 
     assert len(result) == 3

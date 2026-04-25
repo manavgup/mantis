@@ -21,7 +21,7 @@ def test_single_entry_written_and_readable(audit_path: Path):
     h = log.write("run-1", "run_start", "orchestrator", {"msg": "hello"})
 
     assert audit_path.exists()
-    lines = [l for l in audit_path.read_text().splitlines() if l.strip()]
+    lines = [line for line in audit_path.read_text().splitlines() if line.strip()]
     assert len(lines) == 1
 
     entry = json.loads(lines[0])
@@ -40,7 +40,7 @@ def test_two_entries_chain_correctly(audit_path: Path):
     h1 = log.write("run-1", "run_start", "orchestrator", {"step": 1})
     h2 = log.write("run-1", "job_dispatch", "orchestrator", {"step": 2}, job_id="job-1")
 
-    lines = [l for l in audit_path.read_text().splitlines() if l.strip()]
+    lines = [line for line in audit_path.read_text().splitlines() if line.strip()]
     assert len(lines) == 2
 
     e1 = json.loads(lines[0])
@@ -90,7 +90,7 @@ def test_concurrent_writes_do_not_corrupt(audit_path: Path):
     for t in threads:
         t.join()
 
-    lines = [l for l in audit_path.read_text().splitlines() if l.strip()]
+    lines = [line for line in audit_path.read_text().splitlines() if line.strip()]
     expected = n_threads * n_writes_per_thread
     assert len(lines) == expected
 
@@ -99,7 +99,7 @@ def test_concurrent_writes_do_not_corrupt(audit_path: Path):
     assert valid, f"Chain broken at seq={broken_seq}"
 
     # Verify sequential numbering
-    seqs = [json.loads(l)["seq"] for l in lines]
+    seqs = [json.loads(line)["seq"] for line in lines]
     assert seqs == list(range(1, expected + 1))
 
 

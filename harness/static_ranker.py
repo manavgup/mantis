@@ -23,25 +23,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _PATTERNS: dict[str, re.Pattern] = {
-    "unsafe_calls": re.compile(
-        r"\b(strcpy|strcat|sprintf|vsprintf|gets|scanf|sscanf|fscanf)\s*\("
-    ),
-    "input_sources": re.compile(
-        r"\b(fread|recv|recvfrom|fgets|getline|getenv)\s*\("
-    ),
-    "memory_mgmt": re.compile(
-        r"\b(malloc|calloc|realloc|free|mmap|munmap)\s*\("
-    ),
-    "pointer_arith": re.compile(
-        r"\*\s*\(\s*\w+\s*[+\-]|\w+\s*\[\s*[a-zA-Z_]\w*\s*[+\-\*]"
-    ),
+    "unsafe_calls": re.compile(r"\b(strcpy|strcat|sprintf|vsprintf|gets|scanf|sscanf|fscanf)\s*\("),
+    "input_sources": re.compile(r"\b(fread|recv|recvfrom|fgets|getline|getenv)\s*\("),
+    "memory_mgmt": re.compile(r"\b(malloc|calloc|realloc|free|mmap|munmap)\s*\("),
+    "pointer_arith": re.compile(r"\*\s*\(\s*\w+\s*[+\-]|\w+\s*\[\s*[a-zA-Z_]\w*\s*[+\-\*]"),
     "memcpy": re.compile(r"\bmemcpy\s*\("),
 }
 
 # Path fragments that indicate high-risk code
-_PATH_BONUS_PATTERNS = re.compile(
-    r"(parser|codec|format|demux|mux|decode|encode|compress|decompress|crypt|proto|net)"
-)
+_PATH_BONUS_PATTERNS = re.compile(r"(parser|codec|format|demux|mux|decode|encode|compress|decompress|crypt|proto|net)")
 # Path fragments that indicate low-risk code
 _PATH_PENALTY_PATTERNS = re.compile(
     r"(^test/|/test/|^tests/|/tests/|^doc/|/doc/|^docs/|/docs/|"
@@ -134,9 +124,7 @@ def _build_reason(signals: FileSignals) -> str:
         parts.append(f"{signals.pointer_arith} pointer arith")
 
     # Note multipliers
-    has_source_sink = signals.input_sources > 0 and (
-        signals.unsafe_calls > 0 or signals.memcpy_count > 0
-    )
+    has_source_sink = signals.input_sources > 0 and (signals.unsafe_calls > 0 or signals.memcpy_count > 0)
     has_mem_ptr = signals.memory_mgmt > 0 and signals.pointer_arith > 0
     if has_source_sink:
         parts.append("source+sink boost")
@@ -165,11 +153,13 @@ def _normalize_scores(signals_list: list[FileSignals]) -> list[RankedFile]:
             normalized = 1.0 + 4.0 * (s.raw_score - min_raw) / (max_raw - min_raw)
             score = max(1, min(5, round(normalized)))
 
-        results.append(RankedFile(
-            path=s.path,
-            score=score,
-            reason=_build_reason(s),
-        ))
+        results.append(
+            RankedFile(
+                path=s.path,
+                score=score,
+                reason=_build_reason(s),
+            )
+        )
 
     return results
 
@@ -264,7 +254,9 @@ async def rank_files_static(
 
     logger.info(
         "Static ranking complete: %d files scored, %d skipped, top %d selected",
-        len(all_files), skipped, len(ranked),
+        len(all_files),
+        skipped,
+        len(ranked),
     )
 
     return ranked

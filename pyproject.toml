@@ -33,9 +33,31 @@ dev-dependencies = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-mock>=3.12",
+    "pytest-cov>=5.0",
+    "pre-commit>=4.0",
     "ruff>=0.4",
     "mypy>=1.9",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra -q --cov=harness --cov-report=term --cov-fail-under=70"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [".venv", "runs", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["harness"]
+
+[tool.coverage.run]
+source = ["harness"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "if __name__"]

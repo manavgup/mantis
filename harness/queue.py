@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 import redis.asyncio as aioredis
 
@@ -31,9 +29,7 @@ async def _get_client(redis_url: str) -> aioredis.Redis:
     return aioredis.from_url(redis_url, decode_responses=True)
 
 
-async def enqueue_jobs(
-    run_id: str, ranked_files: list[RankedFile], redis_url: str
-) -> int:
+async def enqueue_jobs(run_id: str, ranked_files: list[RankedFile], redis_url: str) -> int:
     """Create job records and add to priority queue. Returns count enqueued."""
     client = await _get_client(redis_url)
     try:
@@ -48,19 +44,22 @@ async def enqueue_jobs(
             )
             # Store job as a hash
             key = f"job:{run_id}:{job_id}"
-            await client.hset(key, mapping={
-                "job_id": job.job_id,
-                "run_id": job.run_id,
-                "file_path": job.file_path,
-                "priority_score": str(job.priority_score),
-                "status": job.status,
-                "container_id": "",
-                "started_at": "",
-                "completed_at": "",
-                "cost_usd": "0.0",
-                "result_path": "",
-                "error": "",
-            })
+            await client.hset(
+                key,
+                mapping={
+                    "job_id": job.job_id,
+                    "run_id": job.run_id,
+                    "file_path": job.file_path,
+                    "priority_score": str(job.priority_score),
+                    "status": job.status,
+                    "container_id": "",
+                    "started_at": "",
+                    "completed_at": "",
+                    "cost_usd": "0.0",
+                    "result_path": "",
+                    "error": "",
+                },
+            )
             # Add to sorted set (score = priority for descending order)
             await client.zadd(f"queue:{run_id}", {job_id: rf.score})
             count += 1
@@ -98,9 +97,7 @@ async def dequeue_job(run_id: str, redis_url: str) -> Job | None:
         await client.aclose()
 
 
-async def update_job_status(
-    run_id: str, job_id: str, redis_url: str, **kwargs
-) -> None:
+async def update_job_status(run_id: str, job_id: str, redis_url: str, **kwargs) -> None:
     """Update fields on a job hash."""
     client = await _get_client(redis_url)
     try:

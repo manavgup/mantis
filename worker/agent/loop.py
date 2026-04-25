@@ -80,21 +80,25 @@ def agent_loop(
 
             # Print tool calls to stderr for audit trail
             print(
-                json.dumps({
-                    "turn": turn + 1,
-                    "tool": tool_call.function.name,
-                    "arguments": arguments,
-                }),
+                json.dumps(
+                    {
+                        "turn": turn + 1,
+                        "tool": tool_call.function.name,
+                        "arguments": arguments,
+                    }
+                ),
                 file=sys.stderr,
             )
 
             result = execute_tool(tool_call.function.name, arguments)
 
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call.id,
-                "content": result,
-            })
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": result,
+                }
+            )
 
     # Max turns exhausted
     return {

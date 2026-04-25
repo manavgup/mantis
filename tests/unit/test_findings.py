@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from harness.audit import AuditLog
-from harness.crypto import encrypt
 from harness.findings import generate_report, record_human_review, store_finding
 from harness.parser import ParsedFinding
 from harness.validator import ValidationResult
@@ -69,7 +68,8 @@ async def test_store_finding_encrypts_fields(
 
     with patch("harness.findings.asyncpg.connect", return_value=mock_conn):
         finding_id = await store_finding(
-            sample_finding, sample_validation,
+            sample_finding,
+            sample_validation,
             run_id="00000000-0000-0000-0000-000000000002",
             job_id="00000000-0000-0000-0000-000000000001",
             enc_key=enc_key,
@@ -99,8 +99,10 @@ def test_generate_report_has_all_sections(
     sample_validation: ValidationResult,
 ):
     report = generate_report(
-        sample_finding, sample_validation,
-        run_id="run-123", finding_id="find-456",
+        sample_finding,
+        sample_validation,
+        run_id="run-123",
+        finding_id="find-456",
         project_name="TestProject",
     )
 
@@ -140,7 +142,8 @@ async def test_record_human_review_logs_audit(audit_log: AuditLog):
     assert audit_log.path.exists()
 
     import json
-    lines = [l for l in audit_log.path.read_text().splitlines() if l.strip()]
+
+    lines = [line for line in audit_log.path.read_text().splitlines() if line.strip()]
     assert len(lines) == 1
     entry = json.loads(lines[0])
     assert entry["event_type"] == "human_review"

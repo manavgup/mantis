@@ -34,7 +34,5 @@ def load_key_from_env(env_var: str) -> bytes:
         raise ValueError(f"Environment variable {env_var} is not set")
     key = base64.b64decode(raw)
     if len(key) != 32:
-        raise ValueError(
-            f"Key from {env_var} must be exactly 32 bytes (got {len(key)})"
-        )
+        raise ValueError(f"Key from {env_var} must be exactly 32 bytes (got {len(key)})")
     return key

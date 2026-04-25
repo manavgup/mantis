@@ -6,12 +6,10 @@ import asyncio
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
 from harness.audit import AuditLog
-from harness.dispatcher import _run_container, dispatch_run
 from harness.queue import enqueue_jobs
 from harness.ranker import RankedFile
 
@@ -55,6 +53,7 @@ def config() -> MockConfig:
 async def cleanup_redis(run_id: str):
     yield
     import redis.asyncio as aioredis
+
     client = aioredis.from_url(REDIS_URL, decode_responses=True)
     keys = []
     async for key in client.scan_iter(f"*{run_id}*"):
@@ -74,12 +73,18 @@ async def test_container_exits_0(run_id: str, audit_log: AuditLog, config: MockC
     await enqueue_jobs(run_id, files, REDIS_URL)
 
     from harness.queue import dequeue_job
+
     job = await dequeue_job(run_id, REDIS_URL)
     assert job is not None
 
     # Run a simple echo container — override by using docker directly
     proc = await asyncio.create_subprocess_exec(
-        "docker", "run", "--rm", "alpine:latest", "echo", "hello",
+        "docker",
+        "run",
+        "--rm",
+        "alpine:latest",
+        "echo",
+        "hello",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -92,7 +97,13 @@ async def test_container_exits_0(run_id: str, audit_log: AuditLog, config: MockC
 async def test_container_exits_1(run_id: str, audit_log: AuditLog, config: MockConfig):
     """Container that exits with error code."""
     proc = await asyncio.create_subprocess_exec(
-        "docker", "run", "--rm", "alpine:latest", "sh", "-c", "exit 1",
+        "docker",
+        "run",
+        "--rm",
+        "alpine:latest",
+        "sh",
+        "-c",
+        "exit 1",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -104,7 +115,12 @@ async def test_container_exits_1(run_id: str, audit_log: AuditLog, config: MockC
 async def test_container_timeout(run_id: str, audit_log: AuditLog, config: MockConfig):
     """Container that exceeds timeout gets killed."""
     proc = await asyncio.create_subprocess_exec(
-        "docker", "run", "--rm", "alpine:latest", "sleep", "300",
+        "docker",
+        "run",
+        "--rm",
+        "alpine:latest",
+        "sleep",
+        "300",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
