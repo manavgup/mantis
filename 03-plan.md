@@ -1,5 +1,5 @@
 # Technical Plan
-# IBM Enterprise Vulnerability Harness (vuln-harness)
+# Mantis — Autonomous Vulnerability Discovery Harness
 
 ## Repository layout
 

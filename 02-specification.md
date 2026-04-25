@@ -1,5 +1,5 @@
 # Specification
-# IBM Enterprise Vulnerability Harness (vuln-harness)
+# Mantis — Autonomous Vulnerability Discovery Harness
 
 ## Overview
 
@@ -254,7 +254,7 @@ Create a Docker bridge network `vuln-harness-net` with:
 - Outbound HTTPS (443) to the configured model provider API endpoint(s) only, enforced via iptables rules applied at network creation
 - All other egress blocked
 - Inter-container communication disabled (`--icc=false` on the daemon or network-level isolation)
-- Implementation: custom Docker network + iptables OUTPUT chain rules, or OpenShift NetworkPolicy in production
+- Implementation: custom Docker network + iptables OUTPUT chain rules, or Kubernetes NetworkPolicy in production
 
 ### Container timeout
 
@@ -371,8 +371,8 @@ Append-only JSONL file at `{run_dir}/audit.jsonl`. Each line is a JSON object:
 
 Hash chaining: each entry's `this_hash` covers the full JSON of that entry including `prev_hash`. This makes the log tamper-evident — any modification breaks the chain from that point forward.
 
-### watsonx.governance compatibility note
-The audit JSONL format and SHA-3 hash chain are designed to be ingested directly by watsonx.governance when that integration is needed. In v1, the file is the artifact — no gateway service is required. Adding watsonx.governance ingestion is a one-day integration: POST each audit entry to the governance endpoint after the local write succeeds.
+### Governance platform compatibility note
+The audit JSONL format and SHA-3 hash chain are designed for direct ingestion by governance platforms. In v1, the file is the artifact — no gateway service is required. Adding governance platform ingestion is a one-day integration: POST each audit entry to the governance endpoint after the local write succeeds.
 
 ---
 

@@ -14,7 +14,7 @@ from harness.audit import AuditLog, verify_chain
 
 @click.group()
 def cli():
-    """IBM Enterprise Vulnerability Harness — autonomous vulnerability discovery."""
+    """Mantis — autonomous vulnerability discovery."""
     pass
 
 
