@@ -47,15 +47,19 @@ vuln-harness run --config harness.yaml
 
 ## Architecture overview
 
+<p align="center">
+  <img src="docs/architecture.svg" alt="Mantis pipeline architecture" width="900"/>
+</p>
+
 The harness operates as a five-stage pipeline managed by a Python asyncio orchestrator:
 
 1. **File ranking** — Static regex-based ranker scores source files 1-5 by vulnerability likelihood (default, free, instant). LLM-based ranking available as an alternative via `ranking_strategy: llm` in config.
-2. **Job dispatch** — Redis priority queue feeds parallel Docker containers (default 4, production 50)
-3. **Worker containers** — litellm-based ReAct agent loop analyzes one file per container with ASAN-instrumented binaries. Target binaries are auto-built once before dispatch; pre-compiled binaries are reused across all workers.
-4. **ASAN parser** — Extracts crash metadata, assigns severity tier (1-5), estimates CVSS
-5. **Validation agent** — Separate LLM call via litellm filters false positives before human review
+2. **Job queue** — Redis sorted set prioritizes files by vulnerability score, feeds parallel Docker workers.
+3. **Worker containers** — Each container runs a litellm-based ReAct agent loop against one source file with ASAN-instrumented binaries. The agent reads code, forms hypotheses, crafts malformed inputs, and runs them against the binary. Target binaries are auto-built once before dispatch and reused across all workers.
+4. **ASAN parser + triage** — Extracts crash metadata from AddressSanitizer output, assigns severity tier (1-5), estimates CVSS.
+5. **Validation agent** — Separate LLM call via litellm reviews each finding: is the ASAN output real? Is the reproduction plausible? Filters false positives before human review.
 
-Results flow into an encrypted Postgres findings store. Every action is logged to the SHA-3 hash-chained audit JSONL before any subsequent step. See `01-constitution.md` and `02-specification.md` for full details.
+Results flow into markdown reports and an optional encrypted Postgres findings store. Every action is logged to the SHA-3 hash-chained audit JSONL before any subsequent step. See `01-constitution.md` and `02-specification.md` for full details.
 
 ## Validated findings
 
