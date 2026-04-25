@@ -46,15 +46,18 @@ services-down:
 # help:
 # help: QUALITY
 # help: check            - Run all quality checks (lint + format-check + test)
+# help: ci               - Run lint + format-check + test (mirrors CI pipeline)
 # help: lint             - Run ruff linter on all Python source
 # help: format           - Auto-format code and fix lint issues
 # help: format-check     - Check formatting without modifying files
 # help: pre-commit       - Run all pre-commit hooks against all files
 # =============================================================================
 
-.PHONY: check lint format format-check pre-commit
+.PHONY: check ci lint format format-check pre-commit
 
 check: lint format-check test
+
+ci: lint format-check test
 
 lint:
 	uv run ruff check harness/ worker/ tests/
