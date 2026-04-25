@@ -1,0 +1,19 @@
+screen width 1
+screen height 1
+screen colors 2
+screen background 0
+pixel aspect byte 0
+
+screen map
+	sort flag off
+	rgb 000 000 000 is 0
+	rgb 000 000 000 is 1
+end
+
+include poc_allblack.gif
+
+image # 1
+image left 0
+image top 0
+image bits 1 by 1
+0

@@ -1,0 +1,108 @@
+screen width 100
+screen height 100
+screen colors 256
+screen background 0
+pixel aspect byte 0
+
+screen map
+	rgb 0 0 0 is A
+	rgb 1 1 1 is A
+	rgb 2 2 2 is A
+	rgb 3 3 3 is A
+	rgb 4 4 4 is A
+	rgb 5 5 5 is A
+	rgb 6 6 6 is A
+	rgb 7 7 7 is A
+	rgb 8 8 8 is A
+	rgb 9 9 9 is A
+	rgb 10 10 10 is A
+	rgb 11 11 11 is A
+	rgb 12 12 12 is A
+	rgb 13 13 13 is A
+	rgb 14 14 14 is A
+	rgb 15 15 15 is A
+	rgb 16 16 16 is A
+	rgb 17 17 17 is A
+	rgb 18 18 18 is A
+	rgb 19 19 19 is A
+	rgb 20 20 20 is A
+	rgb 21 21 21 is A
+	rgb 22 22 22 is A
+	rgb 23 23 23 is A
+	rgb 24 24 24 is A
+	rgb 25 25 25 is A
+	rgb 26 26 26 is A
+	rgb 27 27 27 is A
+	rgb 28 28 28 is A
+	rgb 29 29 29 is A
+	rgb 30 30 30 is A
+	rgb 31 31 31 is A
+	rgb 32 32 32 is A
+	rgb 33 33 33 is A
+	rgb 34 34 34 is A
+	rgb 35 35 35 is A
+	rgb 36 36 36 is A
+	rgb 37 37 37 is A
+	rgb 38 38 38 is A
+	rgb 39 39 39 is A
+	rgb 40 40 40 is A
+	rgb 41 41 41 is A
+	rgb 42 42 42 is A
+	rgb 43 43 43 is A
+	rgb 44 44 44 is A
+	rgb 45 45 45 is A
+	rgb 46 46 46 is A
+	rgb 47 47 47 is A
+	rgb 48 48 48 is A
+	rgb 49 49 49 is A
+	rgb 50 50 50 is A
+	rgb 51 51 51 is A
+	rgb 52 52 52 is A
+	rgb 53 53 53 is A
+	rgb 54 54 54 is A
+	rgb 55 55 55 is A
+	rgb 56 56 56 is A
+	rgb 57 57 57 is A
+	rgb 58 58 58 is A
+	rgb 59 59 59 is A
+	rgb 60 60 60 is A
+	rgb 61 61 61 is A
+	rgb 62 62 62 is A
+	rgb 63 63 63 is A
+	rgb 64 64 64 is A
+	rgb 65 65 65 is A
+	rgb 66 66 66 is A
+	rgb 67 67 67 is A
+	rgb 68 68 68 is A
+	rgb 69 69 69 is A
+	rgb 70 70 70 is A
+	rgb 71 71 71 is A
+	rgb 72 72 72 is A
+	rgb 73 73 73 is A
+	rgb 74 74 74 is A
+	rgb 75 75 75 is A
+	rgb 76 76 76 is A
+	rgb 77 77 77 is A
+	rgb 78 78 78 is A
+	rgb 79 79 79 is A
+	rgb 80 80 80 is A
+	rgb 81 81 81 is A
+	rgb 82 82 82 is A
+	rgb 83 83 83 is A
+	rgb 84 84 84 is A
+	rgb 85 85 85 is A
+	rgb 86 86 86 is A
+	rgb 87 87 87 is A
+	rgb 88 88 88 is A
+	rgb 89 89 89 is A
+	rgb 90 90 90 is A
+	rgb 91 91 91 is A
+	rgb 92 92 92 is A
+	rgb 93 93 93 is A
+end
+
+image
+image top 0
+image left 0
+image bits 1 by 1
+A
