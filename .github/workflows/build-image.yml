@@ -1,0 +1,53 @@
+# ===============================================================
+# Docker Worker Image Build — Build Verification Gate
+# ===============================================================
+#
+#   Builds the worker Docker image to verify it compiles.
+#   Does NOT push to any registry — build-only verification.
+#   Uses GitHub Actions cache for faster builds.
+#
+#   Triggers on PRs to main when worker or Dockerfile changes.
+#   Skips draft PRs.
+# ---------------------------------------------------------------
+
+name: Build Worker Image
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    branches: [main]
+    paths:
+      - "worker/**"
+      - "worker/Dockerfile"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: "!github.event.pull_request.draft"
+    name: Docker build (worker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Build worker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198571cfb76f00 # v6.18.0
+        with:
+          context: worker
+          file: worker/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
