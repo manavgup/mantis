@@ -1,7 +1,7 @@
 # Mantis — Client Demo Summary
 
 **Date**: 2026-04-14
-**Project**: IBM Enterprise Vulnerability Harness (codename: Mantis)
+**Project**: Mantis — Autonomous Vulnerability Discovery Harness
 **Status**: Methodology validated, infrastructure production-ready
 
 ---
@@ -54,7 +54,7 @@ Separate Claude instance reviews each finding: *"Is the ASAN output real? Is the
 
 Every action is written to a **SHA-3 hash-chained JSONL audit log** before execution:
 - Tamper-evident (modification breaks the hash chain)
-- Format designed for direct ingestion by IBM watsonx.governance
+- Format designed for direct ingestion by governance platforms
 - Verified integrity across all test runs
 
 Exploit code stored **AES-256-GCM encrypted** in Postgres — never plaintext.
@@ -131,8 +131,8 @@ Every finding requires **explicit human sign-off** before any external action.
 
 1. **Validate with known-CVE targets** (giflib 5.1.4, libpng 1.6.35, libtiff 4.0.0) — prove the methodology detects bugs we already know exist
 2. **Prompt engineering** — current agents are thorough but don't budget turns well; need workflow templates that guarantee verdict output
-3. **Deploy to OpenShift** for production scale (50 parallel workers)
-4. **watsonx.governance integration** — one-day task: POST each audit entry to the governance endpoint
+3. **Deploy to Kubernetes** for production scale (50 parallel workers)
+4. **Governance platform integration** — one-day task: POST each audit entry to the governance endpoint
 5. **Target expansion** — extend beyond C/C++ once Rust/Go/Java equivalents of ASAN mature
 
 ---
@@ -151,4 +151,4 @@ All spend is capped per-run (`max_run_spend_usd`) and per-day (`max_day_spend_us
 
 ## Why This Matters
 
-Unlike traditional fuzzing, which brute-forces random inputs, this system **understands the code first** and then crafts targeted attacks. That's why Anthropic's Glasswing found bugs traditional fuzzers missed. We've now replicated that capability inside IBM's compliance, audit, and security boundaries — ready for regulated-industry deployment.
+Unlike traditional fuzzing, which brute-forces random inputs, this system **understands the code first** and then crafts targeted attacks. That's why Anthropic's Glasswing found bugs traditional fuzzers missed. We've now replicated that capability with full compliance, audit, and security boundaries — ready for regulated-industry deployment.

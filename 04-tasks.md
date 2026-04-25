@@ -1,5 +1,5 @@
 # Tasks
-# IBM Enterprise Vulnerability Harness (vuln-harness)
+# Mantis — Autonomous Vulnerability Discovery Harness
 # Implementation order for Claude Code
 
 ## How to use this file
@@ -361,12 +361,12 @@ Verify spend limit actually stops dispatch:
 ### Task 8.4 — README.md
 Write complete README covering:
 1. What this is and what it does (2 paragraphs)
-2. Prerequisites (Docker, Python 3.12+, uv, API key, OpenShift for production)
+2. Prerequisites (Docker, Python 3.12+, uv, API key, Kubernetes for production)
 3. Local quickstart (5 steps: clone, install, docker compose up, configure yaml, run)
 4. Architecture overview (brief, refers to specs/ for detail)
 5. Constitution summary (P1–P8 one-liners)
 6. CLI reference (all subcommands with examples)
-7. Moving to production (3 paragraphs: OpenShift, network policy, watsonx.governance)
+7. Moving to production (3 paragraphs: Kubernetes, network policy, governance integration)
 8. Cost expectations (per-file estimates, per-run estimates)
 
 ---

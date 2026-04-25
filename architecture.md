@@ -103,7 +103,7 @@
 │  │    plaintext     │  │    execution    │  │  • Reviewer sign-off box   │ │
 │  │                  │  │  • Tamper-      │  │                            │ │
 │  │                  │  │    evident      │  │  ☐ Confirmed real          │ │
-│  │                  │  │  • watsonx.gov  │  │  ☐ CVSS confirmed: ___    │ │
+│  │                  │  │  • Governance   │  │  ☐ CVSS confirmed: ___    │ │
 │  │                  │  │    compatible   │  │  ☐ Disclosure approved     │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────────────────┘ │
 │                                                                             │
