@@ -99,27 +99,18 @@ def _clone_repo(cfg, run_dir: Path) -> Path:
     return repo_path
 
 
-@cli.command()
-@click.option("--config", "config_path", default="./harness.yaml", help="Path to harness.yaml")
-def build(config_path: str):
-    """Compile target with ASAN in a single container. Saves binaries for worker reuse."""
-    os.environ.setdefault("HARNESS_CONFIG", config_path)
-    from harness.config import Config
+def _build_asan_binaries(cfg, repo_path: Path, bin_dir: Path, run_id: str, audit: AuditLog | None = None) -> None:
+    """Run the ASAN builder container once and collect binaries into *bin_dir*.
 
-    cfg = Config()
-    run_id = str(uuid.uuid4())
-    run_dir = cfg.run_output_dir / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
-    bin_dir = run_dir / "bin"
-    bin_dir.mkdir(exist_ok=True)
+    Raises ``SystemExit(1)`` if the build fails.
+    """
+    import subprocess
 
-    repo_path = _clone_repo(cfg, run_dir)
     repo_real = os.path.realpath(str(repo_path))
     bin_real = os.path.realpath(str(bin_dir))
 
     click.echo(f"Building {cfg.project_name} with ASAN...")
 
-    # Run a build-only container: compile, collect binaries to /output
     cmd = [
         "docker",
         "run",
@@ -147,21 +138,61 @@ def build(config_path: str):
         _BUILD_SCRIPT,
     ]
 
-    import subprocess
+    if audit is not None:
+        audit.write(
+            run_id=run_id,
+            event_type="build_start",
+            actor="orchestrator",
+            payload={"image": cfg.worker_image, "bin_dir": str(bin_dir)},
+        )
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
         click.echo(f"Build failed (exit {result.returncode}):")
         click.echo(result.stderr[-2000:] if len(result.stderr) > 2000 else result.stderr)
+        if audit is not None:
+            audit.write(
+                run_id=run_id,
+                event_type="build_failed",
+                actor="orchestrator",
+                payload={"exit_code": result.returncode},
+            )
         raise SystemExit(1)
 
-    # List collected binaries
     binaries = list(bin_dir.iterdir())
     click.echo(f"Build complete. {len(binaries)} binaries collected:")
     for b in sorted(binaries):
         size_mb = b.stat().st_size / (1024 * 1024)
         click.echo(f"  {b.name} ({size_mb:.1f} MB)")
+
+    if audit is not None:
+        audit.write(
+            run_id=run_id,
+            event_type="build_complete",
+            actor="orchestrator",
+            payload={"binary_count": len(binaries)},
+        )
+
+
+@cli.command()
+@click.option("--config", "config_path", default="./harness.yaml", help="Path to harness.yaml")
+def build(config_path: str):
+    """Compile target with ASAN in a single container. Saves binaries for worker reuse."""
+    os.environ.setdefault("HARNESS_CONFIG", config_path)
+    from harness.config import Config
+
+    cfg = Config()
+    run_id = str(uuid.uuid4())
+    run_dir = cfg.run_output_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    bin_dir = run_dir / "bin"
+    bin_dir.mkdir(exist_ok=True)
+
+    repo_path = _clone_repo(cfg, run_dir)
+
+    _build_asan_binaries(cfg, repo_path, bin_dir, run_id)
+
     click.echo(f"\nBin dir: {bin_dir}")
     click.echo(f"Run ID: {run_id}")
     click.echo(f"\nTo scan: vuln-harness run --config {config_path} --bin-dir {bin_dir}")
@@ -241,6 +272,14 @@ def run(config_path: str, bin_dir: str | None):
 
     # Step 1: Clone or use local repo
     repo_path = _clone_repo(cfg, run_dir)
+
+    # Step 1b: Auto-build ASAN binaries if not pre-supplied
+    if bin_dir is None:
+        auto_bin_dir = run_dir / "bin"
+        auto_bin_dir.mkdir(exist_ok=True)
+        _build_asan_binaries(cfg, repo_path, auto_bin_dir, run_id, audit=audit)
+        bin_dir = str(auto_bin_dir)
+        click.echo(f"  Auto-built binaries: {bin_dir}")
 
     # Step 2: Rank files
     click.echo("Stage 1: Ranking files...")
