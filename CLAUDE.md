@@ -36,7 +36,7 @@ make build-worker   # Build Docker worker image
 
 ## Key Architecture Decisions
 
-- **litellm for all LLM calls**: Both orchestrator and worker use litellm — no direct Anthropic SDK dependency. Models are configurable via YAML.
+- **litellm for all LLM calls**: Both orchestrator and worker use litellm — no direct Anthropic SDK dependency. Models are configurable via YAML or env vars (env vars override YAML).
 - **Static ranker as default**: Free, instant regex-based file ranking. LLM ranking is an alternative.
 - **Build once, scan many**: ASAN binaries are compiled once and mounted read-only into all worker containers.
 - **SHA-3 audit log**: Every action is logged before execution with a hash-chained JSONL format.
@@ -47,6 +47,25 @@ make build-worker   # Build Docker worker image
 - Unit tests: `make test` (no external services needed)
 - Integration tests: `make test-all` (requires Redis and Docker via `make services`)
 - Coverage: infrastructure modules (cli, dispatcher, queue, models) are omitted from coverage as they require integration tests
+
+## LLM Provider Configuration
+
+All model settings can be overridden via environment variables without modifying YAML configs. Env vars take precedence over YAML values (pydantic-settings priority: env > YAML > defaults).
+
+```bash
+# Use OpenAI instead of Anthropic (no YAML changes needed)
+export WORKER_MODEL=openai/gpt-4o
+export RANKING_MODEL=openai/gpt-4o
+export VALIDATION_MODEL=openai/gpt-4o
+export OPENAI_API_KEY=sk-...
+
+# Or use Ollama for local models
+export WORKER_MODEL=ollama/llama3
+export RANKING_MODEL=ollama/llama3
+export VALIDATION_MODEL=ollama/llama3
+```
+
+Any config field in `harness/config.py` can be overridden by setting an env var with the same name (case-insensitive). The YAML files provide defaults; env vars override them.
 
 ## Code Style
 
