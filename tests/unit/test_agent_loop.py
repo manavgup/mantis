@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def _make_completion_response(content: str = "", tool_calls=None):
     """Create a mock litellm completion response."""
@@ -45,11 +43,13 @@ class TestAgentLoop:
         """Agent returns verdict on first turn without tool calls."""
         from worker.agent.loop import agent_loop
 
-        verdict_json = json.dumps({
-            "verdict": "not_found",
-            "description": "No vulnerabilities found",
-            "reasoning": "Code looks safe",
-        })
+        verdict_json = json.dumps(
+            {
+                "verdict": "not_found",
+                "description": "No vulnerabilities found",
+                "reasoning": "Code looks safe",
+            }
+        )
         mock_response = _make_completion_response(content=verdict_json)
 
         with patch("worker.agent.loop.litellm") as mock_litellm:
@@ -75,16 +75,23 @@ class TestAgentLoop:
         tool_response.choices[0].message.model_dump.return_value = {
             "role": "assistant",
             "content": None,
-            "tool_calls": [{"id": "call_1", "function": {"name": "read_file", "arguments": '{"path": "/target/src/test.c"}'}}],
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "function": {"name": "read_file", "arguments": '{"path": "/target/src/test.c"}'},
+                }
+            ],
         }
 
         # Second response: verdict
-        verdict_json = json.dumps({
-            "verdict": "found",
-            "vuln_type": "heap-buffer-overflow",
-            "description": "Buffer overflow in parse()",
-            "reasoning": "Found OOB read",
-        })
+        verdict_json = json.dumps(
+            {
+                "verdict": "found",
+                "vuln_type": "heap-buffer-overflow",
+                "description": "Buffer overflow in parse()",
+                "reasoning": "Found OOB read",
+            }
+        )
         verdict_response = _make_completion_response(content=verdict_json)
 
         with patch("worker.agent.loop.litellm") as mock_litellm:

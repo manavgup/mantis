@@ -31,13 +31,15 @@ def rank(config_path: str):
     run_dir.mkdir(parents=True, exist_ok=True)
 
     audit = AuditLog(run_dir / "audit.jsonl")
-    audit.write(run_id=run_id, event_type="run_start", actor="orchestrator",
-                payload={"command": "rank", "config": config_path})
+    audit.write(
+        run_id=run_id, event_type="run_start", actor="orchestrator", payload={"command": "rank", "config": config_path}
+    )
 
     repo_path = Path(cfg.repo_url) if Path(cfg.repo_url).exists() else None
     if repo_path is None:
         # Clone the repo
         import subprocess
+
         repo_path = run_dir / "repo"
         click.echo(f"Cloning {cfg.repo_url} ...")
         subprocess.run(
@@ -47,15 +49,17 @@ def rank(config_path: str):
 
     from harness.ranker import rank_files, write_rankings_json
 
-    ranked = asyncio.run(rank_files(
-        run_id=run_id,
-        repo_path=repo_path,
-        exclude_patterns=cfg.exclude_patterns,
-        ranking_model=cfg.ranking_model,
-        max_files_to_scan=cfg.max_files_to_scan,
-        audit=audit,
-        strategy=cfg.ranking_strategy,
-    ))
+    ranked = asyncio.run(
+        rank_files(
+            run_id=run_id,
+            repo_path=repo_path,
+            exclude_patterns=cfg.exclude_patterns,
+            ranking_model=cfg.ranking_model,
+            max_files_to_scan=cfg.max_files_to_scan,
+            audit=audit,
+            strategy=cfg.ranking_strategy,
+        )
+    )
 
     write_rankings_json(
         run_dir=run_dir,
@@ -84,6 +88,7 @@ def _clone_repo(cfg, run_dir: Path) -> Path:
     repo_path = Path(cfg.repo_url) if Path(cfg.repo_url).exists() else None
     if repo_path is None:
         import subprocess
+
         repo_path = run_dir / "repo"
         if not repo_path.exists():
             click.echo(f"Cloning {cfg.repo_url} ...")
@@ -116,21 +121,34 @@ def build(config_path: str):
 
     # Run a build-only container: compile, collect binaries to /output
     cmd = [
-        "docker", "run", "--rm",
-        "--name", f"builder-{run_id[:12]}",
-        "--memory", f"{cfg.worker_memory_gb}g",
-        "--cpus", str(cfg.worker_cpus),
-        "--tmpfs", "/tmp:size=4g",
-        "-v", f"{repo_real}:/target/src:ro",
-        "-v", f"{bin_real}:/output",
-        "-e", f"BINARY_NAME={cfg.binary_name}",
-        "-e", f"CONFIGURE_FLAGS={cfg.configure_flags}",
-        "--entrypoint", "/bin/bash",
+        "docker",
+        "run",
+        "--rm",
+        "--name",
+        f"builder-{run_id[:12]}",
+        "--memory",
+        f"{cfg.worker_memory_gb}g",
+        "--cpus",
+        str(cfg.worker_cpus),
+        "--tmpfs",
+        "/tmp:size=4g",
+        "-v",
+        f"{repo_real}:/target/src:ro",
+        "-v",
+        f"{bin_real}:/output",
+        "-e",
+        f"BINARY_NAME={cfg.binary_name}",
+        "-e",
+        f"CONFIGURE_FLAGS={cfg.configure_flags}",
+        "--entrypoint",
+        "/bin/bash",
         cfg.worker_image,
-        "-c", _BUILD_SCRIPT,
+        "-c",
+        _BUILD_SCRIPT,
     ]
 
     import subprocess
+
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
@@ -214,8 +232,12 @@ def run(config_path: str, bin_dir: str | None):
     (run_dir / "findings").mkdir(exist_ok=True)
 
     audit = AuditLog(run_dir / "audit.jsonl")
-    audit.write(run_id=run_id, event_type="run_start", actor="orchestrator",
-                payload={"command": "run", "config": config_path, "bin_dir": bin_dir})
+    audit.write(
+        run_id=run_id,
+        event_type="run_start",
+        actor="orchestrator",
+        payload={"command": "run", "config": config_path, "bin_dir": bin_dir},
+    )
 
     # Step 1: Clone or use local repo
     repo_path = _clone_repo(cfg, run_dir)
@@ -223,25 +245,34 @@ def run(config_path: str, bin_dir: str | None):
     # Step 2: Rank files
     click.echo("Stage 1: Ranking files...")
     from harness.ranker import rank_files, write_rankings_json
-    ranked = asyncio.run(rank_files(
-        run_id=run_id,
-        repo_path=repo_path,
-        exclude_patterns=cfg.exclude_patterns,
-        ranking_model=cfg.ranking_model,
-        max_files_to_scan=cfg.max_files_to_scan,
-        audit=audit,
-        strategy=cfg.ranking_strategy,
-    ))
+
+    ranked = asyncio.run(
+        rank_files(
+            run_id=run_id,
+            repo_path=repo_path,
+            exclude_patterns=cfg.exclude_patterns,
+            ranking_model=cfg.ranking_model,
+            max_files_to_scan=cfg.max_files_to_scan,
+            audit=audit,
+            strategy=cfg.ranking_strategy,
+        )
+    )
     write_rankings_json(
-        run_dir=run_dir, run_id=run_id, repo_url=cfg.repo_url,
-        repo_commit=cfg.repo_commit, ranked_files=ranked,
-        total_files=len(ranked), excluded=0, cost=0.0,
+        run_dir=run_dir,
+        run_id=run_id,
+        repo_url=cfg.repo_url,
+        repo_commit=cfg.repo_commit,
+        ranked_files=ranked,
+        total_files=len(ranked),
+        excluded=0,
+        cost=0.0,
     )
     click.echo(f"  Ranked {len(ranked)} files")
 
     # Step 3: Enqueue jobs
     click.echo("Stage 2: Enqueueing jobs...")
-    from harness.queue import enqueue_jobs, dequeue_job, update_job_status, increment_spend, get_run_spend
+    from harness.queue import enqueue_jobs
+
     asyncio.run(enqueue_jobs(run_id, ranked, cfg.redis_url))
     click.echo(f"  Enqueued {len(ranked)} jobs")
 
@@ -251,15 +282,16 @@ def run(config_path: str, bin_dir: str | None):
     else:
         click.echo("Stage 3: Dispatching workers (compiling per container)...")
     from harness.dispatcher import dispatch_run
+
     results = asyncio.run(dispatch_run(run_id, cfg, audit, repo_path=repo_path, bin_path=bin_dir))
     click.echo(f"  Completed {len(results)} containers")
 
     # Step 5: Parse and validate
     click.echo("Stages 4-5: Parsing and validating...")
+    from harness.crypto import load_key_from_env
+    from harness.findings import ensure_job_exists, ensure_run_exists, generate_report, store_finding
     from harness.parser import parse_result
     from harness.validator import validate_finding
-    from harness.findings import store_finding, generate_report, ensure_run_exists, ensure_job_exists
-    from harness.crypto import load_key_from_env
 
     try:
         enc_key = load_key_from_env(cfg.findings_encryption_key_env)
@@ -287,23 +319,37 @@ def run(config_path: str, bin_dir: str | None):
             rejected_count += 1
 
         import uuid as _uuid
+
         finding_id = str(_uuid.uuid4())
 
         # Store to Postgres if encryption key available
         if enc_key:
-            asyncio.run(ensure_job_exists(
-                job_id, run_id, finding.file or "", finding.severity_tier, cfg.postgres_url,
-            ))
-            finding_id = asyncio.run(store_finding(
-                finding, validation, run_id, job_id, enc_key, cfg.postgres_url,
-            ))
+            asyncio.run(
+                ensure_job_exists(
+                    job_id,
+                    run_id,
+                    finding.file or "",
+                    finding.severity_tier,
+                    cfg.postgres_url,
+                )
+            )
+            finding_id = asyncio.run(
+                store_finding(
+                    finding,
+                    validation,
+                    run_id,
+                    job_id,
+                    enc_key,
+                    cfg.postgres_url,
+                )
+            )
 
         report = generate_report(finding, validation, run_id, finding_id)
         report_path = run_dir / "findings" / f"{finding_id}.md"
         report_path.write_text(report)
 
     # Summary
-    click.echo(f"\n{'='*60}")
+    click.echo(f"\n{'=' * 60}")
     click.echo(f"Run complete: {run_id}")
     click.echo(f"  Jobs dispatched: {len(results)}")
     click.echo(f"  Findings: {findings_count}")
@@ -330,8 +376,10 @@ def review_cmd(run_id: str, config_path: str):
     click.echo(f"\n{'ID':<38}{'Tier':<6}{'CVSS':<7}{'Type':<25}{'File':<40}{'Verdict'}")
     click.echo("-" * 120)
     for f in findings:
-        click.echo(f"{f['finding_id']!s:<38}{f['severity_tier']:<6}{f['cvss_estimate']:<7}"
-                   f"{f['vuln_type'] or '':<25}{f['file_path'] or '':<40}{f['validation_verdict']}")
+        click.echo(
+            f"{f['finding_id']!s:<38}{f['severity_tier']:<6}{f['cvss_estimate']:<7}"
+            f"{f['vuln_type'] or '':<25}{f['file_path'] or '':<40}{f['validation_verdict']}"
+        )
 
 
 @cli.command()
@@ -356,9 +404,16 @@ def approve(finding_id: str, reviewer: str, cvss: float, approve_disclosure: boo
             audit = AuditLog(d / "audit.jsonl")
             break
 
-    asyncio.run(record_human_review(
-        finding_id, reviewer, cvss, approve_disclosure, cfg.postgres_url, audit,
-    ))
+    asyncio.run(
+        record_human_review(
+            finding_id,
+            reviewer,
+            cvss,
+            approve_disclosure,
+            cfg.postgres_url,
+            audit,
+        )
+    )
     click.echo(f"Finding {finding_id} reviewed by {reviewer}. CVSS: {cvss}. Disclosure: {approve_disclosure}")
 
 
@@ -390,8 +445,9 @@ def audit_verify(run_id: str, config_path: str):
 def cost(run_id: str, config_path: str):
     """Print cost breakdown for a run."""
     os.environ.setdefault("HARNESS_CONFIG", config_path)
-    from harness.config import Config
     import json
+
+    from harness.config import Config
 
     cfg = Config()
     audit_path = cfg.run_output_dir / run_id / "audit.jsonl"

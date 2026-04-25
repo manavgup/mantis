@@ -7,12 +7,12 @@ import re
 from dataclasses import dataclass
 
 ASAN_PATTERNS = {
-    "heap-buffer-overflow":   r"ERROR: AddressSanitizer: heap-buffer-overflow",
-    "stack-buffer-overflow":  r"ERROR: AddressSanitizer: stack-buffer-overflow",
-    "use-after-free":         r"ERROR: AddressSanitizer: heap-use-after-free",
-    "use-after-return":       r"ERROR: AddressSanitizer: stack-use-after-return",
-    "null-dereference":       r"ERROR: AddressSanitizer: null-dereference",
-    "memory-leak":            r"ERROR: LeakSanitizer: detected memory leaks",
+    "heap-buffer-overflow": r"ERROR: AddressSanitizer: heap-buffer-overflow",
+    "stack-buffer-overflow": r"ERROR: AddressSanitizer: stack-buffer-overflow",
+    "use-after-free": r"ERROR: AddressSanitizer: heap-use-after-free",
+    "use-after-return": r"ERROR: AddressSanitizer: stack-use-after-return",
+    "null-dereference": r"ERROR: AddressSanitizer: null-dereference",
+    "memory-leak": r"ERROR: LeakSanitizer: detected memory leaks",
     "global-buffer-overflow": r"ERROR: AddressSanitizer: global-buffer-overflow",
 }
 

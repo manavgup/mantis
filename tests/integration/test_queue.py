@@ -9,7 +9,6 @@ import pytest
 import redis.asyncio as aioredis
 
 from harness.queue import (
-    Job,
     dequeue_job,
     enqueue_jobs,
     get_queue_depth,
@@ -81,7 +80,9 @@ async def test_update_job_status(run_id: str):
     assert job is not None
 
     await update_job_status(
-        run_id, job.job_id, REDIS_URL,
+        run_id,
+        job.job_id,
+        REDIS_URL,
         status="running",
         container_id="abc123",
     )

@@ -27,7 +27,7 @@ _RANKING_PROMPT_TEMPLATE = (
     "Score: 4 — parses external input, manages memory, handles auth\n"
     "Score: 5 — network I/O, file parsing of untrusted data, memory allocators, crypto\n"
     "\n"
-    'Respond with a JSON array. Each element must have exactly these fields:\n'
+    "Respond with a JSON array. Each element must have exactly these fields:\n"
     '  {{"path": "<file path>", "score": <1-5>, "reason": "<brief reason>"}}\n'
     "\n"
     "Return ONLY the JSON array, no other text.\n"
@@ -44,9 +44,7 @@ class RankedFile:
     reason: str
 
 
-def _enumerate_source_files(
-    repo_path: Path, exclude_patterns: list[str]
-) -> list[str]:
+def _enumerate_source_files(repo_path: Path, exclude_patterns: list[str]) -> list[str]:
     """Walk repo and collect source files, applying exclusion patterns."""
     files = []
     for p in sorted(repo_path.rglob("*")):
@@ -61,9 +59,7 @@ def _enumerate_source_files(
     return files
 
 
-def _parse_ranking_response(
-    response_text: str, expected_files: list[str]
-) -> list[RankedFile]:
+def _parse_ranking_response(response_text: str, expected_files: list[str]) -> list[RankedFile]:
     """Parse model response into RankedFile list, defaulting missing files to score 3."""
     text = response_text.strip()
     match = re.search(r"\[.*\]", text, re.DOTALL)

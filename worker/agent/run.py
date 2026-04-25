@@ -18,11 +18,15 @@ def main() -> None:
     task_prompt = os.environ.get("TASK_PROMPT", "")
 
     if not task_prompt:
-        print(json.dumps({
-            "verdict": "inconclusive",
-            "description": "No TASK_PROMPT environment variable set.",
-            "reasoning": "Agent cannot run without a task prompt.",
-        }))
+        print(
+            json.dumps(
+                {
+                    "verdict": "inconclusive",
+                    "description": "No TASK_PROMPT environment variable set.",
+                    "reasoning": "Agent cannot run without a task prompt.",
+                }
+            )
+        )
         sys.exit(1)
 
     # Load system prompt from file
@@ -30,11 +34,15 @@ def main() -> None:
         with open(system_prompt_path) as f:
             system_prompt = f.read()
     except FileNotFoundError:
-        print(json.dumps({
-            "verdict": "inconclusive",
-            "description": f"System prompt not found at {system_prompt_path}",
-            "reasoning": "Agent cannot run without a system prompt.",
-        }))
+        print(
+            json.dumps(
+                {
+                    "verdict": "inconclusive",
+                    "description": f"System prompt not found at {system_prompt_path}",
+                    "reasoning": "Agent cannot run without a system prompt.",
+                }
+            )
+        )
         sys.exit(1)
 
     # Run the agent loop

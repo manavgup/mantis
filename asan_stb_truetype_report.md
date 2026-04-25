@@ -6,11 +6,11 @@
 
 ## 🚨 Bug 1 — Heap Buffer Overflow: Unbounded `loca`/`glyf` Offset
 
-- **Severity:** Critical (arbitrary OOB read)  
-- **Files:**  
-  - `attack1_loca_oob.ttf`  
-  - `attack5_glyf_offset_past_eof.ttf`  
-  - `attack17_composite_loca_oob.ttf`  
+- **Severity:** Critical (arbitrary OOB read)
+- **Files:**
+  - `attack1_loca_oob.ttf`
+  - `attack5_glyf_offset_past_eof.ttf`
+  - `attack17_composite_loca_oob.ttf`
 
 ### Root Cause
 `stbtt__GetGlyfOffset` (lines 1603–1621) computes glyph offsets without validating bounds:
@@ -21,7 +21,7 @@ g2 = info->glyf + ttULONG(info->data + info->loca + glyph_index * 4 + 4);
 return g1==g2 ? -1 : g1;
 ```
 
-**Issue:**  
+**Issue:**
 Neither `g1` nor `g2` is checked against buffer size.
 
 ### Trigger Paths
@@ -33,7 +33,7 @@ Neither `g1` nor `g2` is checked against buffer size.
 
 ## 🚨 Bug 2 — Heap Buffer Overflow: `numberOfContours`
 
-- **Severity:** High  
+- **Severity:** High
 - **File:** `attack2_numcontours_huge.ttf`
 
 ### Root Cause
@@ -46,7 +46,7 @@ Neither `g1` nor `g2` is checked against buffer size.
 
 ## 🚨 Bug 3 — Stack Overflow: Infinite Recursion
 
-- **Severity:** Critical (DoS / stack exhaustion)  
+- **Severity:** Critical (DoS / stack exhaustion)
 - **Files:** `attack6_*`, `attack11_*`, `attack25_*`
 
 ### Root Cause
@@ -60,7 +60,7 @@ comp_num_verts = stbtt_GetGlyphShape(info, gidx, &comp_verts);
 
 ## 🚨 Bug 4 — Heap OOB / SEGV: `cmap` Format-12
 
-- **Severity:** Critical  
+- **Severity:** Critical
 - **File:** `attack10_cmap_fmt12_ngroups_huge.ttf`
 
 ### Root Cause
@@ -74,7 +74,7 @@ ttULONG(data+index_map+16+mid*12);
 
 ## 🚨 Bug 5 — Heap Buffer Overflow: `kern` Table
 
-- **Severity:** High  
+- **Severity:** High
 - **File:** `attack16f_kern_no_gpos.ttf`
 
 ### Root Cause
@@ -87,7 +87,7 @@ straw = ttULONG(data+18+(m*6));
 
 ## 🚨 Bug 6 — Heap Buffer Overflow: `hhea` Offset
 
-- **Severity:** High  
+- **Severity:** High
 - **File:** `attack22_hhea_oob.ttf`
 
 ### Root Cause
@@ -99,7 +99,7 @@ straw = ttULONG(data+18+(m*6));
 
 ## 🚨 Bug 7 — Heap Buffer Overflow: `head` Offset
 
-- **Severity:** Critical  
+- **Severity:** Critical
 - **File:** `attack23_head_oob.ttf`
 
 ### Root Cause

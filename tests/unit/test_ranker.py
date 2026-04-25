@@ -10,31 +10,40 @@ import pytest
 
 from harness.audit import AuditLog
 from harness.llm import LLMResponse
-from harness.ranker import RankedFile, _enumerate_source_files, _parse_ranking_response, rank_files
+from harness.ranker import _enumerate_source_files, _parse_ranking_response, rank_files
 
 
 @pytest.fixture()
 def sample_response_text() -> str:
-    return json.dumps([
-        {"path": "src/parser.c", "score": 5, "reason": "parses untrusted data"},
-        {"path": "src/alloc.c", "score": 4, "reason": "memory allocator"},
-        {"path": "src/util.c", "score": 2, "reason": "low surface"},
-        {"path": "src/crypto.c", "score": 5, "reason": "crypto ops"},
-        {"path": "src/config.h", "score": 1, "reason": "constants"},
-        {"path": "src/io.c", "score": 4, "reason": "file I/O"},
-        {"path": "src/log.c", "score": 2, "reason": "logging"},
-        {"path": "src/net.c", "score": 5, "reason": "network I/O"},
-        {"path": "src/hash.c", "score": 3, "reason": "hashing"},
-        {"path": "src/main.c", "score": 3, "reason": "entry point"},
-    ])
+    return json.dumps(
+        [
+            {"path": "src/parser.c", "score": 5, "reason": "parses untrusted data"},
+            {"path": "src/alloc.c", "score": 4, "reason": "memory allocator"},
+            {"path": "src/util.c", "score": 2, "reason": "low surface"},
+            {"path": "src/crypto.c", "score": 5, "reason": "crypto ops"},
+            {"path": "src/config.h", "score": 1, "reason": "constants"},
+            {"path": "src/io.c", "score": 4, "reason": "file I/O"},
+            {"path": "src/log.c", "score": 2, "reason": "logging"},
+            {"path": "src/net.c", "score": 5, "reason": "network I/O"},
+            {"path": "src/hash.c", "score": 3, "reason": "hashing"},
+            {"path": "src/main.c", "score": 3, "reason": "entry point"},
+        ]
+    )
 
 
 @pytest.fixture()
 def ten_files() -> list[str]:
     return [
-        "src/parser.c", "src/alloc.c", "src/util.c", "src/crypto.c",
-        "src/config.h", "src/io.c", "src/log.c", "src/net.c",
-        "src/hash.c", "src/main.c",
+        "src/parser.c",
+        "src/alloc.c",
+        "src/util.c",
+        "src/crypto.c",
+        "src/config.h",
+        "src/io.c",
+        "src/log.c",
+        "src/net.c",
+        "src/hash.c",
+        "src/main.c",
     ]
 
 
@@ -54,15 +63,16 @@ def test_ten_files_correct_sorted_order(sample_response_text: str, ten_files: li
 
 
 def test_missing_score_defaults_to_3(ten_files: list[str]):
-    response = json.dumps([
-        {"path": "src/parser.c", "score": 5, "reason": "parses data"},
-        {"path": "src/util.c", "score": 2, "reason": "utils"},
-        {"path": "src/config.h", "score": 1, "reason": "constants"},
-    ])
+    response = json.dumps(
+        [
+            {"path": "src/parser.c", "score": 5, "reason": "parses data"},
+            {"path": "src/util.c", "score": 2, "reason": "utils"},
+            {"path": "src/config.h", "score": 1, "reason": "constants"},
+        ]
+    )
     ranked = _parse_ranking_response(response, ten_files)
     assert len(ranked) == 10
-    missing_files = {"src/alloc.c", "src/crypto.c", "src/io.c", "src/log.c",
-                     "src/net.c", "src/hash.c", "src/main.c"}
+    missing_files = {"src/alloc.c", "src/crypto.c", "src/io.c", "src/log.c", "src/net.c", "src/hash.c", "src/main.c"}
     for r in ranked:
         if r.path in missing_files:
             assert r.score == 3
@@ -74,6 +84,7 @@ async def test_api_failure_retries_then_raises(audit_log: AuditLog):
 
     with patch("harness.ranker.call_llm", mock_call):
         import tempfile
+
         with tempfile.TemporaryDirectory() as td:
             repo = Path(td)
             (repo / "test.c").write_text("int main() {}")
@@ -105,13 +116,10 @@ def test_exclusion_patterns_applied(tmp_path: Path):
 
 
 @pytest.mark.asyncio
-async def test_rank_files_end_to_end(
-    tmp_path: Path, sample_response_text: str, audit_log: AuditLog
-):
+async def test_rank_files_end_to_end(tmp_path: Path, sample_response_text: str, audit_log: AuditLog):
     src = tmp_path / "repo" / "src"
     src.mkdir(parents=True)
-    for name in ["parser.c", "alloc.c", "util.c", "crypto.c", "config.h",
-                  "io.c", "log.c", "net.c", "hash.c", "main.c"]:
+    for name in ["parser.c", "alloc.c", "util.c", "crypto.c", "config.h", "io.c", "log.c", "net.c", "hash.c", "main.c"]:
         (src / name).write_text("")
 
     mock_response = LLMResponse(

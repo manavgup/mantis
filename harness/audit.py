@@ -79,9 +79,7 @@ class AuditLog:
                 }
 
                 # Hash covers the full entry including prev_hash but before this_hash is set
-                this_hash = hashlib.sha3_256(
-                    json.dumps(entry, sort_keys=True).encode()
-                ).hexdigest()
+                this_hash = hashlib.sha3_256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
                 entry["this_hash"] = this_hash
 
                 f.seek(0, 2)  # seek to end
@@ -114,9 +112,7 @@ def verify_chain(path: Path) -> tuple[bool, int | None]:
 
             # Recompute hash: remove this_hash, serialize, hash
             stored_hash = entry.pop("this_hash")
-            computed_hash = hashlib.sha3_256(
-                json.dumps(entry, sort_keys=True).encode()
-            ).hexdigest()
+            computed_hash = hashlib.sha3_256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
             entry["this_hash"] = stored_hash  # restore
 
             if computed_hash != stored_hash:
