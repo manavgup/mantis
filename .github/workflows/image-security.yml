@@ -48,7 +48,7 @@ jobs:
       # have known CVEs that we accept for now)
       # ---------------------------------------------------------------
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947e7f25d18f1229e19 # v0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         continue-on-error: true
         with:
           image-ref: vuln-harness-worker:latest
@@ -60,14 +60,14 @@ jobs:
       # Generate CycloneDX SBOM with Syft
       # ---------------------------------------------------------------
       - name: Generate SBOM
-        uses: anchore/sbom-action@e11c554f704a0b820cbf8c51673f6945e0731532 # v0.18.0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           image: vuln-harness-worker:latest
           format: cyclonedx-json
           output-file: sbom.json
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@ea165f8d65b6db9a8b76aff02472626f1ef6aea8 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
           path: sbom.json
