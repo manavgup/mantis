@@ -1,0 +1,20 @@
+# Version control
+.git
+.gitignore
+
+# Python artifacts
+*.pyc
+__pycache__
+.venv
+.env
+
+# Test & coverage
+.coverage
+.pytest_cache
+
+# Documentation (keep README)
+*.md
+!README.md
+
+# Scan output
+runs/
