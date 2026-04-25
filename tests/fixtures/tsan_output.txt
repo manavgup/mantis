@@ -1,0 +1,7 @@
+==================
+WARNING: ThreadSanitizer: data race (pid=12345)
+  Write of size 4 at 0x7fff8000 by thread T1:
+    #0 update_counter /tmp/src/counter.c:23:5
+  Previous read of size 4 at 0x7fff8000 by main thread:
+    #0 read_counter /tmp/src/counter.c:45:12
+==================

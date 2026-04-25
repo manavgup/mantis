@@ -68,7 +68,7 @@ async def _run_container(
         "-e",
         f"CONFIGURE_FLAGS={config.configure_flags}",
         "-e",
-        "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1:print_stacktrace=1",
+        f"SANITIZERS={','.join(config.sanitizers)}",
         "--security-opt",
         "no-new-privileges",
         "--cap-drop",

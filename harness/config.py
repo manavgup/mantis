@@ -50,6 +50,9 @@ class Config(BaseSettings):
     # Build
     configure_flags: str = ""  # extra flags for ./configure (e.g. FFmpeg's --extra-cflags)
 
+    # Sanitizers: asan, ubsan, msan, tsan (msan/tsan cannot combine with asan)
+    sanitizers: list[str] = ["asan"]
+
     # Ranking strategy: "static" (regex-based, free, instant) | "llm" (LLM-based)
     ranking_strategy: str = "static"
 
