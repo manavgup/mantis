@@ -202,7 +202,7 @@ open('/tmp/poc_minimal.txt','w').writelines(lines)
 --- a/util/gifbuild.c
 +++ b/util/gifbuild.c
 @@ -239,6 +239,11 @@ static void Icon2Gif(char *FileName, FILE *txtin, int fdout)
- 	// cppcheck-suppress invalidscanf 
+ 	// cppcheck-suppress invalidscanf
  	else if (sscanf(buf, "\trgb %d %d %d is %c",
  		   &red, &green, &blue, &KeyTable[ColorMapSize]) == 4)
 +	{
