@@ -118,6 +118,21 @@ build-target:
 
 # =============================================================================
 # help:
+# help: SECURITY
+# help: scan-image       - Scan worker Docker image with Trivy
+# help: sbom             - Generate CycloneDX SBOM with Syft
+# =============================================================================
+
+.PHONY: scan-image sbom
+
+scan-image:
+	./scripts/scan-image.sh
+
+sbom:
+	./scripts/generate-sbom.sh
+
+# =============================================================================
+# help:
 # help: CLEANUP
 # help: clean            - Remove build and cache artifacts
 # =============================================================================
