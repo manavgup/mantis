@@ -28,14 +28,16 @@ lines = [
 for i in range(94):
     lines.append(f"\trgb {i % 256} {i % 256} {i % 256} is A\n")
 
-lines.extend([
-    "end\n",
-    "\n",
-    "image\n",
-    "image top 0\n",
-    "image left 0\n",
-    "image bits 1 by 1\n",
-    "A\n",
-])
+lines.extend(
+    [
+        "end\n",
+        "\n",
+        "image\n",
+        "image top 0\n",
+        "image left 0\n",
+        "image bits 1 by 1\n",
+        "A\n",
+    ]
+)
 
 sys.stdout.writelines(lines)
