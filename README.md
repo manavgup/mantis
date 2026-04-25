@@ -1,8 +1,8 @@
-# IBM Enterprise Vulnerability Harness (vuln-harness)
+# Mantis — Autonomous Vulnerability Discovery Harness
 
 An autonomous defensive security research tool that finds, validates, and reports vulnerabilities in open-source C/C++ software. It uses a litellm-based ReAct agent loop as the agentic runtime inside isolated Docker containers, following the five-stage Anthropic methodology: file-ranking pre-pass, parallel isolated worker containers with AddressSanitizer verification, PoC generation, and validation agent filtering. The agent loop is provider-agnostic — any litellm-compatible model (Anthropic, OpenAI, Google, Ollama, etc.) works out of the box.
 
-Built for enterprise use in regulated industries including financial services and federal government. Satisfies NIST frameworks, applicable regulatory requirements, and IBM security standards with a tamper-evident SHA-3 hash-chained audit log designed for watsonx.governance ingestion.
+Built for enterprise use in regulated industries. Satisfies NIST frameworks and applicable regulatory requirements with a tamper-evident SHA-3 hash-chained audit log.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ Built for enterprise use in regulated industries including financial services an
 - **Python 3.12+** — orchestrator language
 - **uv** — Python package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - **LLM provider API key** — at least one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, etc. (any litellm-supported provider)
-- **OpenShift / IBM Cloud Code Engine** — for production deployment (optional for local dev)
+- **Kubernetes** — for production deployment (optional for local dev)
 
 ## Local quickstart
 
@@ -166,11 +166,11 @@ All PRs to main run:
 
 ## Moving to production
 
-**OpenShift deployment**: Replace Docker with OpenShift container runtime. Worker containers become OpenShift Jobs with resource limits enforced by the cluster. The `harness.yaml` `max_parallel_workers` maps to Job parallelism. Use OpenShift Secrets for API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.) and `FINDINGS_ENC_KEY`.
+**Kubernetes deployment**: Replace Docker with Kubernetes Jobs. Worker containers become Jobs with resource limits enforced by the cluster. The `harness.yaml` `max_parallel_workers` maps to Job parallelism. Use Kubernetes Secrets for API keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.) and `FINDINGS_ENC_KEY`.
 
-**Network policy**: Replace the `scripts/setup-network.sh` iptables rules with OpenShift NetworkPolicy objects. The policy allows egress only to the configured LLM provider endpoint(s) and denies all inter-pod communication. This is the production equivalent of the Docker bridge network isolation.
+**Network policy**: Replace the `scripts/setup-network.sh` iptables rules with Kubernetes NetworkPolicy objects. The policy allows egress only to the configured LLM provider endpoint(s) and denies all inter-pod communication. This is the production equivalent of the Docker bridge network isolation.
 
-**watsonx.governance integration**: The audit JSONL format and SHA-3 hash chain are designed for direct ingestion by watsonx.governance. Integration is a one-day task: POST each audit entry to the governance endpoint after the local write succeeds. The hash chain provides tamper evidence; watsonx.governance provides retention, search, and compliance reporting.
+**Governance integration**: The audit JSONL format and SHA-3 hash chain are designed for direct ingestion by governance platforms. Integration is a one-day task: POST each audit entry to the governance endpoint after the local write succeeds. The hash chain provides tamper evidence; the governance platform provides retention, search, and compliance reporting.
 
 ## Cost expectations
 
