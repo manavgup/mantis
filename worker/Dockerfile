@@ -50,6 +50,7 @@ RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-
     && apt-get update && apt-get install -y --no-install-recommends \
     # --- compilers & sanitizer runtime ---
     clang \
+    libclang-rt-18-dev \
     libasan8 \
     # --- debuggers ---
     lldb \
