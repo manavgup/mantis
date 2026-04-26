@@ -4,7 +4,7 @@
 **Discovered by**: Mantis
 **Original harness (historical baseline)**: Claude Code agent (sonnet-4-6), 2026-04-14
 **Updated harness**: litellm-based ReAct agent loop, 2026-04-25
-**Total validated findings**: 3
+**Total validated findings**: 3 (Claude Sonnet), 6 (GPT-5.4), 0 (GPT-4o)
 
 ---
 
@@ -18,14 +18,47 @@
 
 ## Run Details
 
-The updated litellm-based harness was run twice against giflib 5.1.4. Both runs independently discovered findings 1 and 2. Finding 3 was discovered only in run 1.
+### Cross-Backend Comparison
 
-| Run ID | Date | Findings |
-|--------|------|----------|
-| `3fb19f15-879e-4d40-8d67-21d74c5324ae` | 2026-04-25 | #1, #2, #3 (3 findings) |
-| `d49e47aa-18b0-41d4-a842-f9c346940808` | 2026-04-25 | #1, #2 (2 findings) |
+| Backend | Model | Run ID | Date | Files | Findings | Validated | Cost | Notes |
+|---------|-------|--------|------|-------|----------|-----------|------|-------|
+| Anthropic | claude-sonnet-4-6 | `3fb19f15` | 2026-04-25 | 10 | 3 | 3 | — | Discovered #1, #2, #3 |
+| Anthropic | claude-sonnet-4-6 | `d49e47aa` | 2026-04-25 | 10 | 2 | 2 | — | Replicated #1, #2 |
+| OpenAI | gpt-5.4 | `398e1c3e` | 2026-04-26 | 10 | 8 | 6 | $0.11 | Discovered #1, #2, #3 + 5 new findings |
+| OpenAI | gpt-4o | `b751cac9` | 2026-04-26 | 10 | 0 | 0 | $0.00 | No crashes triggered |
+
+**Key takeaway**: GPT-5.4 found the most vulnerabilities (8 findings, 6 validated) at the lowest cost ($0.11 for 10 files). GPT-4o found zero. Claude Sonnet found 3 validated findings across two runs. All backends used the same pipeline, same target, same static ranker, same ASAN instrumentation.
+
+### Claude Sonnet Runs
+
+The litellm-based harness was run twice with Claude Sonnet. Both runs independently discovered findings 1 and 2. Finding 3 was discovered only in run 1.
 
 Finding #1 was originally discovered on 2026-04-14 using a Claude Code CLI-based baseline run (12 of 40 turns, cost $0.74) and has now been replicated by the updated litellm-based harness in both independent runs.
+
+### GPT-5.4 Run (2026-04-26)
+
+Run `398e1c3e-4348-4b07-afec-7a402a621461` discovered 8 findings (6 validated, 0 rejected, 2 needs-human-triage). GPT-5.4 independently rediscovered all 3 Claude Sonnet findings plus 5 additional vulnerabilities not found by Claude:
+
+| # | File | Vuln Type | Tier | CVSS | New? |
+|---|------|-----------|------|------|------|
+| 1 | `dgif_lib.c:268` | heap-buffer-overflow | 3 | 6.2 | Variant of Finding #1 (decoder side) |
+| 2 | `getarg.c:417` | stack-buffer-overflow | **4** | **8.2** | **New** — unbounded writes past MAX_PARAM |
+| 3 | `gif2rgb.c:294` | heap-buffer-overflow | 3 | 6.2 | Same as Finding #1 |
+| 4 | `gifbuild.c:287` | stack-buffer-overflow | **4** | **8.2** | Variant of Finding #2 (sscanf overflow) |
+| 5 | `giftext.c:330` | null-pointer-deref | 2 | 4.2 | **New** — NULL deref with missing colormap |
+| 6 | `gifalloc.c:55` | heap-buffer-overflow | 3 | 6.2 | Variant of Finding #3 (palette index) |
+| 7 | `gif_font.c:169` | global-buffer-overflow | 3 | 6.2 | **New** — signed char negative index into font table |
+| 8 | `egif_lib.c:583` | heap-buffer-overflow | 3 | 6.2 | **New** — untrusted ExtLen in encoder API |
+
+Notable GPT-5.4-only findings:
+- **getarg.c stack overflow** (Tier 4): `GAGetMultiParmeters` stores args in fixed `TmpArray[MAX_PARAM]` without bounds check. 100+ wildcard args overflow the stack.
+- **gif_font.c global-buffer-overflow**: `GifDrawText8x8()` indexes 128-entry font table with `(short)(*cp)`. Signed char values >= 0x80 produce negative indices.
+- **giftext.c null-pointer-deref**: Missing global + local colormap causes NULL deref in `PrintCodeBlock()`.
+- **egif_lib.c heap-buffer-overflow**: Encoder trusts caller-supplied `ExtLen` without bounds check, causing OOB read.
+
+### GPT-4o Run (2026-04-26)
+
+Run `b751cac9-6123-4c4d-8d6f-628c14d3c6cc` completed all 10 containers with exit code 0 but found no vulnerabilities. All workers returned `verdict: not_found` with small stdout (639-1286 bytes), suggesting the model did not probe deeply enough to trigger ASAN crashes.
 
 ---
 
