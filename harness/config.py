@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+
+from harness.sanitizers import validate_sanitizers
 
 
 class YamlSettingsSource(PydanticBaseSettingsSource):
@@ -89,6 +91,11 @@ class Config(BaseSettings):
     # Secrets — API keys are read from env vars by litellm automatically
     # (ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, etc.)
     findings_enc_key: str | None = Field(default=None, alias="FINDINGS_ENC_KEY")
+
+    @field_validator("sanitizers")
+    @classmethod
+    def _validate_sanitizers(cls, value: list[str]) -> list[str]:
+        return validate_sanitizers(value)
 
     @classmethod
     def settings_customise_sources(cls, settings_cls, **kwargs):

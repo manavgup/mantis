@@ -10,6 +10,7 @@ from pathlib import Path
 import click
 
 from harness.audit import AuditLog, verify_chain
+from harness.sanitizers import build_sanitizer_flags
 
 
 @click.group()
@@ -99,8 +100,8 @@ def _clone_repo(cfg, run_dir: Path) -> Path:
     return repo_path
 
 
-def _build_asan_binaries(cfg, repo_path: Path, bin_dir: Path, run_id: str, audit: AuditLog | None = None) -> None:
-    """Run the ASAN builder container once and collect binaries into *bin_dir*.
+def _build_sanitized_binaries(cfg, repo_path: Path, bin_dir: Path, run_id: str, audit: AuditLog | None = None) -> None:
+    """Run the builder container once and collect sanitized binaries into *bin_dir*.
 
     Raises ``SystemExit(1)`` if the build fails.
     """
@@ -108,8 +109,10 @@ def _build_asan_binaries(cfg, repo_path: Path, bin_dir: Path, run_id: str, audit
 
     repo_real = os.path.realpath(str(repo_path))
     bin_real = os.path.realpath(str(bin_dir))
+    sanitizer_flags = build_sanitizer_flags(cfg.sanitizers)
+    sanitizer_list = ",".join(sanitizer_flags.sanitizers)
 
-    click.echo(f"Building {cfg.project_name} with ASAN...")
+    click.echo(f"Building {cfg.project_name} with sanitizers: {sanitizer_list}...")
 
     cmd = [
         "docker",
@@ -131,6 +134,12 @@ def _build_asan_binaries(cfg, repo_path: Path, bin_dir: Path, run_id: str, audit
         f"BINARY_NAME={cfg.binary_name}",
         "-e",
         f"CONFIGURE_FLAGS={cfg.configure_flags}",
+        "-e",
+        f"SANITIZERS={sanitizer_list}",
+        "-e",
+        f"FULL_CFLAGS={sanitizer_flags.cflags}",
+        "-e",
+        f"FULL_LDFLAGS={sanitizer_flags.ldflags}",
         "--entrypoint",
         "/bin/bash",
         cfg.worker_image,
@@ -143,7 +152,11 @@ def _build_asan_binaries(cfg, repo_path: Path, bin_dir: Path, run_id: str, audit
             run_id=run_id,
             event_type="build_start",
             actor="orchestrator",
-            payload={"image": cfg.worker_image, "bin_dir": str(bin_dir)},
+            payload={
+                "image": cfg.worker_image,
+                "bin_dir": str(bin_dir),
+                "sanitizers": list(sanitizer_flags.sanitizers),
+            },
         )
 
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -178,7 +191,7 @@ def _build_asan_binaries(cfg, repo_path: Path, bin_dir: Path, run_id: str, audit
 @cli.command()
 @click.option("--config", "config_path", default="./harness.yaml", help="Path to harness.yaml")
 def build(config_path: str):
-    """Compile target with ASAN in a single container. Saves binaries for worker reuse."""
+    """Compile target with configured sanitizers in a single container. Saves binaries for worker reuse."""
     os.environ.setdefault("HARNESS_CONFIG", config_path)
     from harness.config import Config
 
@@ -191,7 +204,7 @@ def build(config_path: str):
 
     repo_path = _clone_repo(cfg, run_dir)
 
-    _build_asan_binaries(cfg, repo_path, bin_dir, run_id)
+    _build_sanitized_binaries(cfg, repo_path, bin_dir, run_id)
 
     click.echo(f"\nBin dir: {bin_dir}")
     click.echo(f"Run ID: {run_id}")
@@ -207,8 +220,12 @@ cd /tmp/src
 git submodule update --init --recursive 2>/dev/null || true
 
 export CC=clang
-export CFLAGS="-fsanitize=address -g -O1 -fno-omit-frame-pointer -fPIC"
-export LDFLAGS="-fsanitize=address"
+export SANITIZERS="${SANITIZERS:-asan}"
+export CFLAGS="${FULL_CFLAGS}"
+export LDFLAGS="${FULL_LDFLAGS}"
+
+echo "=== active sanitizers: ${SANITIZERS} ===" >&2
+echo "=== sanitize flags: ${CFLAGS} / ${LDFLAGS} ===" >&2
 
 if [ -n "${CONFIGURE_FLAGS:-}" ]; then
     CONF_CMD="./configure $CONFIGURE_FLAGS"
@@ -277,7 +294,7 @@ def run(config_path: str, bin_dir: str | None):
     if bin_dir is None:
         auto_bin_dir = run_dir / "bin"
         auto_bin_dir.mkdir(exist_ok=True)
-        _build_asan_binaries(cfg, repo_path, auto_bin_dir, run_id, audit=audit)
+        _build_sanitized_binaries(cfg, repo_path, auto_bin_dir, run_id, audit=audit)
         bin_dir = str(auto_bin_dir)
         click.echo(f"  Auto-built binaries: {bin_dir}")
 
