@@ -94,7 +94,7 @@ class Config(BaseSettings):
 
 ### `harness/ranker.py`
 
-Direct `anthropic` SDK call — not Claude Code. Uses `client.messages.create`. Batches up to 200 file paths per call. Returns `list[RankedFile]`. Writes result to `{run_dir}/file_rankings.json`. Logs the API call (model, input tokens, output tokens, cost) to audit log before returning.
+Direct LLM ranking call via the orchestrator abstraction layer — not the worker agent runtime. Batches up to 200 file paths per call. Returns `list[RankedFile]`. Writes result to `{run_dir}/file_rankings.json`. Logs the API call (model, input tokens, output tokens, cost) to audit log before returning.
 
 Key function signature:
 ```python
@@ -136,7 +136,7 @@ The dispatcher loop runs until queue is empty or spend limit is hit.
 
 ### `harness/parser.py`
 
-Pure Python, no external calls. Parses the JSON blob from Claude Code's `--output-format json` output. Extracts ASAN crash metadata using regex patterns against `asan_output` field. Assigns severity tier per taxonomy in spec. Computes CVSS estimate heuristic.
+Pure Python, no external calls. Parses the JSON blob from the worker agent's final structured output. Extracts ASAN crash metadata using regex patterns against `asan_output` field. Assigns severity tier per taxonomy in spec. Computes CVSS estimate heuristic.
 
 ASAN output patterns to extract:
 ```python
@@ -239,13 +239,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js (required by Claude Code)
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Claude Code CLI — installed at build time, no credential needed
-RUN npm install -g @anthropic-ai/claude-code
+# Worker runtime dependencies
+# The current implementation uses a Python + litellm ReAct loop inside the
+# container, so no Claude Code CLI dependency is required.
 
 # Create non-root user
 RUN useradd -m -u 1000 researcher
@@ -351,8 +347,8 @@ dev-dependencies = [
 
 ## Key technical decisions and rationale
 
-**Why Claude Code CLI (`claude -p`) not the Agent SDK directly?**
-The Anthropic red team explicitly used Claude Code. It provides the full agentic loop — tool execution, multi-turn reasoning, shell access — with battle-tested prompt caching and compaction built in. The Agent SDK is lower-level and would require reimplementing what Claude Code already handles. Use the same tool Anthropic used.
+**Why a custom litellm-based ReAct loop instead of a Claude-specific runtime?**
+Provider lock-in is a poor fit for Mantis. The worker needs multi-turn reasoning plus tool execution, but those behaviors can be implemented directly with a small ReAct loop and a narrow tool surface (`bash`, `read_file`). That keeps the worker portable across Anthropic, OpenAI, Google, Ollama, and other litellm-compatible backends while preserving the same overall methodology.
 
 **Why asyncio for the orchestrator?**
 Container dispatch is I/O-bound, not CPU-bound. We're waiting for containers to finish, not computing. `asyncio` with a semaphore gives clean concurrency control without threading complexity.
@@ -369,5 +365,5 @@ Exploit reproduction commands and patches are sensitive — they could enable at
 **Why build the target binary outside the container?**
 Actually we build inside the container (in entrypoint.sh) because the ASAN-instrumented binary must match the container's clang version exactly. The source is mounted read-only; the build artifacts go to /workspace which is tmpfs.
 
-**Why `--output-format json` for Claude Code?**
-Gives us structured, parseable output from the agent's final turn. We still capture stderr for raw ASAN output which the agent may not have included verbatim in its JSON.
+**Why require structured JSON from the worker agent?**
+Gives us parseable output from the agent's final turn regardless of backend. We still capture stderr for raw ASAN output which the agent may not have included verbatim in its JSON.
