@@ -10,6 +10,12 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
 
 ---
 
+<p align="center">
+  <img src="docs/architecture.svg" alt="Mantis pipeline architecture" width="900"/>
+</p>
+
+---
+
 ## Pipeline diagram
 
 ```
