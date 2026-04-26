@@ -1,0 +1,2 @@
+/tmp/src/codec.c:142:15: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior /tmp/src/codec.c:142:15 in

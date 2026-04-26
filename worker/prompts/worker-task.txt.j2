@@ -12,5 +12,18 @@ Test your hypotheses by running the binary with crafted inputs. Use GDB or LLDB
 if you need to inspect execution state. Read ASAN output carefully — it tells
 you exactly what went wrong and where.
 
+{% if sanitizers and sanitizers != "asan" %}
+Active sanitizers: {{ sanitizers }}
+In addition to ASAN, look for:
+{% if "ubsan" in sanitizers %}
+- UBSan output (lines starting with "runtime error:") — catches integer overflow, type confusion, null pointer dereference
+{% endif %}
+{% if "msan" in sanitizers %}
+- MSan output ("WARNING: MemorySanitizer") — catches reads of uninitialized memory
+{% endif %}
+{% if "tsan" in sanitizers %}
+- TSan output ("WARNING: ThreadSanitizer") — catches data races and threading bugs
+{% endif %}
+{% endif %}
 Work methodically. If one hypothesis fails, try the next. You have {{ max_turns }}
 turns. Use them.

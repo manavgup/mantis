@@ -16,11 +16,36 @@ ASAN_PATTERNS = {
     "global-buffer-overflow": r"ERROR: AddressSanitizer: global-buffer-overflow",
 }
 
+UBSAN_PATTERNS = {
+    "signed-integer-overflow": r"runtime error: signed integer overflow",
+    "unsigned-integer-overflow": r"runtime error: unsigned integer overflow",
+    "shift-out-of-bounds": r"runtime error: shift exponent",
+    "divide-by-zero": r"runtime error: division by zero",
+    "null-pointer-use": r"runtime error: .*null pointer",
+    "type-mismatch": r"runtime error: .*type mismatch",
+    "invalid-bool-load": r"runtime error: load of value .* which is not a valid value for type 'bool'",
+    "vla-bound-not-positive": r"runtime error: variable length array bound evaluates to non-positive",
+    "float-cast-overflow": r"runtime error: .* is outside the range of representable values",
+    "alignment-violation": r"runtime error: .* misaligned address",
+}
+
+MSAN_PATTERNS = {
+    "use-of-uninitialized-value": r"WARNING: MemorySanitizer: use-of-uninitialized-value",
+}
+
+TSAN_PATTERNS = {
+    "data-race": r"WARNING: ThreadSanitizer: data race",
+    "thread-leak": r"WARNING: ThreadSanitizer: thread leak",
+    "lock-order-inversion": r"WARNING: ThreadSanitizer: lock-order-inversion",
+    "signal-unsafe-call": r"WARNING: ThreadSanitizer: signal-unsafe call",
+}
+
 READ_WRITE_PATTERN = r"(READ|WRITE) of size \d+"
 LOCATION_PATTERN = r"in (\w+) ([^\s:]+):(\d+)"
 
 # Severity tier mapping
 SEVERITY_MAP = {
+    # ASAN
     "heap-buffer-overflow": {"READ": 3, "WRITE": 4},
     "stack-buffer-overflow": {"READ": 3, "WRITE": 4},
     "use-after-free": {"READ": 3, "WRITE": 4},
@@ -28,6 +53,24 @@ SEVERITY_MAP = {
     "null-dereference": {"READ": 2, "WRITE": 2},
     "global-buffer-overflow": {"READ": 3, "WRITE": 4},
     "memory-leak": {"READ": 1, "WRITE": 1},
+    # UBSan
+    "signed-integer-overflow": {"READ": 3, "WRITE": 3},
+    "unsigned-integer-overflow": {"READ": 2, "WRITE": 2},
+    "shift-out-of-bounds": {"READ": 2, "WRITE": 2},
+    "divide-by-zero": {"READ": 2, "WRITE": 2},
+    "null-pointer-use": {"READ": 2, "WRITE": 2},
+    "type-mismatch": {"READ": 3, "WRITE": 3},
+    "invalid-bool-load": {"READ": 2, "WRITE": 2},
+    "vla-bound-not-positive": {"READ": 2, "WRITE": 2},
+    "float-cast-overflow": {"READ": 2, "WRITE": 2},
+    "alignment-violation": {"READ": 2, "WRITE": 2},
+    # MSan
+    "use-of-uninitialized-value": {"READ": 3, "WRITE": 3},
+    # TSan
+    "data-race": {"READ": 3, "WRITE": 3},
+    "thread-leak": {"READ": 1, "WRITE": 1},
+    "lock-order-inversion": {"READ": 2, "WRITE": 2},
+    "signal-unsafe-call": {"READ": 2, "WRITE": 2},
 }
 
 # CVSS ranges by tier
@@ -61,9 +104,10 @@ class ParsedFinding:
 
 
 def _detect_vuln_type(asan_text: str) -> str | None:
-    for vuln_type, pattern in ASAN_PATTERNS.items():
-        if re.search(pattern, asan_text):
-            return vuln_type
+    for patterns in (ASAN_PATTERNS, UBSAN_PATTERNS, MSAN_PATTERNS, TSAN_PATTERNS):
+        for vuln_type, pattern in patterns.items():
+            if re.search(pattern, asan_text):
+                return vuln_type
     return None
 
 

@@ -77,3 +77,35 @@ def test_missing_required_field_raises(tmp_path: Path, monkeypatch):
 
     with pytest.raises(Exception):
         Config()
+
+
+def test_default_sanitizers(minimal_yaml: Path, monkeypatch):
+    """Default config has sanitizers: ['asan']."""
+    monkeypatch.setenv("HARNESS_CONFIG", str(minimal_yaml))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("FINDINGS_ENC_KEY", raising=False)
+
+    from harness.config import Config
+
+    cfg = Config()
+    assert cfg.sanitizers == ["asan"]
+
+
+def test_multi_sanitizers(tmp_path: Path, monkeypatch):
+    """Config accepts multiple sanitizers."""
+    data = {
+        "repo_url": "https://github.com/test/repo",
+        "binary_name": "testbin",
+        "project_name": "testproject",
+        "project_description": "A test project",
+        "postgres_url": "postgresql://localhost:5432/test",
+        "sanitizers": ["asan", "ubsan"],
+    }
+    p = tmp_path / "harness.yaml"
+    p.write_text(yaml.dump(data))
+    monkeypatch.setenv("HARNESS_CONFIG", str(p))
+
+    from harness.config import Config
+
+    cfg = Config()
+    assert cfg.sanitizers == ["asan", "ubsan"]

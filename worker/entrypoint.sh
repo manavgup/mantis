@@ -15,6 +15,7 @@ print(tmpl.render(
     project_description=os.environ['PROJECT_DESCRIPTION'],
     binary_name=os.environ['BINARY_NAME'],
     max_turns=os.environ.get('MAX_TURNS', '50'),
+    sanitizers=os.environ.get('SANITIZERS', 'asan'),
 ))
 ")
 
@@ -26,15 +27,63 @@ git submodule update --init --recursive 2>/dev/null || true
 BINDIR=/tmp/bin
 mkdir -p "$BINDIR"
 
+# Build sanitizer flags from SANITIZERS env var (default: asan)
+SANITIZERS="${SANITIZERS:-asan}"
+FSANITIZE_PARTS=""
+EXTRA_CFLAGS=""
+EXTRA_LDFLAGS=""
+NO_RECOVER=""
+
+IFS=',' read -ra SAN_ARRAY <<< "$SANITIZERS"
+for san in "${SAN_ARRAY[@]}"; do
+    case "$san" in
+        asan)
+            FSANITIZE_PARTS="${FSANITIZE_PARTS:+$FSANITIZE_PARTS,}address"
+            ;;
+        ubsan)
+            FSANITIZE_PARTS="${FSANITIZE_PARTS:+$FSANITIZE_PARTS,}undefined"
+            NO_RECOVER="-fno-sanitize-recover=all"
+            ;;
+        msan)
+            FSANITIZE_PARTS="${FSANITIZE_PARTS:+$FSANITIZE_PARTS,}memory"
+            EXTRA_CFLAGS="-fPIE"
+            EXTRA_LDFLAGS="-pie"
+            ;;
+        tsan)
+            FSANITIZE_PARTS="${FSANITIZE_PARTS:+$FSANITIZE_PARTS,}thread"
+            ;;
+    esac
+done
+
+SANITIZE_FLAG="-fsanitize=${FSANITIZE_PARTS}"
+FULL_CFLAGS="${SANITIZE_FLAG} -g -O1 -fno-omit-frame-pointer -fPIC ${NO_RECOVER} ${EXTRA_CFLAGS}"
+FULL_LDFLAGS="${SANITIZE_FLAG} ${EXTRA_LDFLAGS}"
+# Trim whitespace
+FULL_CFLAGS=$(echo "$FULL_CFLAGS" | xargs)
+FULL_LDFLAGS=$(echo "$FULL_LDFLAGS" | xargs)
+
+# Set sanitizer runtime options
+for san in "${SAN_ARRAY[@]}"; do
+    case "$san" in
+        asan)  export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:print_stacktrace=1" ;;
+        ubsan) export UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ;;
+        msan)  export MSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ;;
+        tsan)  export TSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" ;;
+    esac
+done
+
+echo "=== active sanitizers: ${SANITIZERS} ===" >&2
+echo "=== sanitize flag: ${SANITIZE_FLAG} ===" >&2
+
 # Check if pre-compiled binaries were mounted at /target/bin
 if [ -d /target/bin ] && [ "$(ls -A /target/bin 2>/dev/null)" ]; then
     echo "=== using pre-compiled binaries from /target/bin ===" >&2
     cp -a /target/bin/* "$BINDIR/" 2>/dev/null || true
 else
-    echo "=== compiling with AddressSanitizer ===" >&2
+    echo "=== compiling with sanitizers: ${SANITIZERS} ===" >&2
     export CC=clang
-    export CFLAGS="-fsanitize=address -g -O1 -fno-omit-frame-pointer -fPIC"
-    export LDFLAGS="-fsanitize=address"
+    export CFLAGS="$FULL_CFLAGS"
+    export LDFLAGS="$FULL_LDFLAGS"
 
     emit_build_failure() {
         local output="$1"
@@ -63,10 +112,10 @@ else
         BUILD_OUTPUT=$(cmake \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_C_FLAGS="-fsanitize=address -g -O1 -fno-omit-frame-pointer -fPIC" \
-            -DCMAKE_CXX_FLAGS="-fsanitize=address -g -O1 -fno-omit-frame-pointer -fPIC" \
-            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
-            -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address" \
+            -DCMAKE_C_FLAGS="$FULL_CFLAGS" \
+            -DCMAKE_CXX_FLAGS="$FULL_CFLAGS" \
+            -DCMAKE_EXE_LINKER_FLAGS="$FULL_LDFLAGS" \
+            -DCMAKE_SHARED_LINKER_FLAGS="$FULL_LDFLAGS" \
             -DCMAKE_BUILD_TYPE=Debug \
             -DBUILD_SHARED_LIBS=OFF \
             .. 2>&1 && make -j"$(nproc)" 2>&1) || emit_build_failure "$BUILD_OUTPUT"
@@ -93,8 +142,6 @@ fi
 export PATH="$BINDIR:$PATH"
 echo "=== available binaries ===" >&2
 ls "$BINDIR/" >&2 2>/dev/null || echo "(none found)" >&2
-
-export ASAN_OPTIONS="detect_leaks=1:abort_on_error=1:print_stacktrace=1"
 
 echo "=== invoking agent loop (model=${MODEL:-anthropic/claude-opus-4-6}, max ${MAX_TURNS:-50} turns) ===" >&2
 export TASK_PROMPT
