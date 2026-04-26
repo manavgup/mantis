@@ -109,3 +109,23 @@ def test_multi_sanitizers(tmp_path: Path, monkeypatch):
 
     cfg = Config()
     assert cfg.sanitizers == ["asan", "ubsan"]
+
+
+def test_invalid_sanitizer_combination_raises(tmp_path: Path, monkeypatch):
+    """Invalid sanitizer combinations fail fast during config load."""
+    data = {
+        "repo_url": "https://github.com/test/repo",
+        "binary_name": "testbin",
+        "project_name": "testproject",
+        "project_description": "A test project",
+        "postgres_url": "postgresql://localhost:5432/test",
+        "sanitizers": ["asan", "msan"],
+    }
+    p = tmp_path / "harness.yaml"
+    p.write_text(yaml.dump(data))
+    monkeypatch.setenv("HARNESS_CONFIG", str(p))
+
+    from harness.config import Config
+
+    with pytest.raises(ValueError, match="asan and msan"):
+        Config()
