@@ -2,9 +2,9 @@
 
 ## Overview
 
-Mantis is a five-stage pipeline for autonomous vulnerability discovery in C/C++ projects. A Python asyncio orchestrator manages the full lifecycle: ranking source files by vulnerability likelihood, dispatching isolated Docker containers that each run a provider-agnostic LLM agent loop with AddressSanitizer-instrumented binaries, parsing and triaging crash output, validating findings with a separate LLM call, and producing encrypted findings and human-review reports. Every action is logged to a SHA-3 hash-chained audit trail before any subsequent step executes.
+Mantis is a five-stage pipeline for autonomous vulnerability discovery in C/C++ projects. A Python asyncio orchestrator manages the full lifecycle: ranking source files by vulnerability likelihood, dispatching isolated Docker containers that each run a provider-agnostic LLM agent loop with sanitizer-instrumented binaries, parsing and triaging crash output, validating findings with a separate LLM call, and producing encrypted findings and human-review reports. Every action is logged to a SHA-3 hash-chained audit trail before any subsequent step executes.
 
-The system follows a "build once, scan many" model. ASAN binaries are compiled a single time in a builder container and then mounted read-only into every worker container. This eliminates redundant compilation, reduces per-container runtime by minutes, and ensures every worker tests the same binary. Workers never modify the source or the binary -- they only craft inputs and observe ASAN output.
+The system follows a "build once, scan many" model. Binaries instrumented with the configured sanitizer set are compiled a single time in a builder container and then mounted read-only into every worker container. This eliminates redundant compilation, reduces per-container runtime by minutes, and ensures every worker tests the same binary. Workers never modify the source or the binary -- they only craft inputs and observe sanitizer output.
 
 All LLM calls route through litellm, making the system provider-agnostic. The default model is `anthropic/claude-opus-4-6` but any litellm-compatible model string works (`openai/gpt-4o`, `ollama/llama3`, etc.). Each stage's model is independently configurable via YAML or environment variables, with env vars taking precedence. File ranking defaults to a free, instant static regex ranker -- LLM ranking is available as an alternative.
 
@@ -26,9 +26,9 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
    +--------------------------------------------------------------+
    |  STAGE 0 -- BUILD (one-time)                                  |
    |                                                               |
-   |  Builder container: Clang + ASAN flags                        |
+   |  Builder container: Clang + configured sanitizer flags        |
    |  Auto-detects build system (configure / autotools / cmake /   |
-   |  Makefile), compiles with -fsanitize=address -g -O1           |
+   |  Makefile), compiles with the configured sanitizer set        |
    |  Collects binaries to host bin/ dir                           |
    |                                                               |
    |  Key files:                                                   |
@@ -73,7 +73,8 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
    | bash      | | bash      | | bash      | | bash      |
    | read_file | | read_file | | read_file | | read_file |
    | GDB/LLDB  | | GDB/LLDB  | | GDB/LLDB  | | GDB/LLDB  |
-   | ASAN bin  | | ASAN bin  | | ASAN bin  | | ASAN bin  |
+   | Sanitized | | Sanitized | | Sanitized | | Sanitized |
+   | binary    | | binary    | | binary    | | binary    |
    |           | |           | |           | |           |
    | Egress:   | | Egress:   | | Egress:   | | Egress:   |
    | LLM API   | | LLM API   | | LLM API   | | LLM API   |
@@ -84,9 +85,9 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
                 |
                 v
    +--------------------------------------------------------------+
-   |  STAGE 4 -- ASAN PARSER + TRIAGE                              |
+   |  STAGE 4 -- SANITIZER PARSER + TRIAGE                         |
    |                                                               |
-   |  Extract crash metadata -> Assign severity tier -> Est. CVSS  |
+   |  Extract crash/runtime metadata -> Assign severity -> Est. CVSS|
    |                                                               |
    |  Tier 5: Control flow hijack (RIP/PC control)   CVSS 9.0-10  |
    |  Tier 4: Arbitrary write (heap-buffer-overflow)  CVSS 7.5-9.0 |
@@ -130,7 +131,7 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
 
 ## Stage 0 -- Build (pre-compilation)
 
-**What it does**: Compiles the target project once with Clang and AddressSanitizer flags (`-fsanitize=address -g -O1 -fno-omit-frame-pointer`). The builder container auto-detects the build system (configure, autotools, cmake, or plain Makefile), applies optional `configure_flags` from config, and copies all resulting executables to a host directory.
+**What it does**: Compiles the target project once with Clang and the configured sanitizer set (`asan`, `ubsan`, `msan`, `tsan`, or valid combinations). The builder container auto-detects the build system (configure, autotools, cmake, or plain Makefile), applies optional `configure_flags` from config, and copies all resulting executables to a host directory.
 
 **Key files**:
 - `harness/cli.py` -- `_build_asan_binaries()` launches the builder container, `_BUILD_SCRIPT` is the in-container build logic
@@ -175,7 +176,7 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
 
 ## Stage 3 -- Worker containers (ReAct agent loop)
 
-**What it does**: Each container receives one source file to analyze. The entrypoint renders a Jinja2 task prompt, copies source to a writable tmpfs, sets up the ASAN binary on PATH, and invokes the Python ReAct agent loop. The agent reads code, forms vulnerability hypotheses, crafts malformed inputs, runs the ASAN binary, and reads crash output. If it triggers a crash, it reports a structured JSON verdict to stdout.
+**What it does**: Each container receives one source file to analyze. The entrypoint renders a Jinja2 task prompt, copies source to a writable tmpfs, sets up the prebuilt sanitized binary on PATH, and invokes the Python ReAct agent loop. The agent reads code, forms vulnerability hypotheses, crafts malformed inputs, runs the instrumented binary, and reads crash/runtime output. If it triggers a sanitizer finding, it reports a structured JSON verdict to stdout.
 
 **Key files**:
 - `worker/agent/loop.py` -- `agent_loop()`: the core ReAct loop using `litellm.completion()` with tool_choice="auto"
@@ -195,10 +196,10 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
 
 ## Stage 4 -- ASAN parser and triage
 
-**What it does**: Parses agent JSON output and container stderr for AddressSanitizer crash signatures. Extracts vulnerability type, read/write direction, source location (function, file, line). Assigns a severity tier (1-5) and estimates CVSS based on the tier.
+**What it does**: Parses agent JSON output and container stderr for sanitizer signatures across ASan, UBSan, MSan, and TSan. Extracts vulnerability type, read/write direction where applicable, source location (function, file, line). Assigns a severity tier (1-5) and estimates CVSS based on the tier.
 
 **Key files**:
-- `harness/parser.py` -- `parse_result()`, severity/CVSS maps, ASAN regex patterns
+- `harness/parser.py` -- `parse_result()`, severity/CVSS maps, sanitizer regex patterns
 
 **Severity tiers**:
 
@@ -211,7 +212,7 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
 | 1 | Memory leak only | 1.0 - 3.5 |
 
 **Design decisions**:
-- **Regex-based extraction**: ASAN output has a predictable format. Regex extraction is reliable and requires no LLM call.
+- **Regex-based extraction**: sanitizer output has a predictable format. Regex extraction is reliable and requires no LLM call.
 - **Conservative CVSS**: The estimate is the midpoint of the tier's range. Human reviewers must confirm or override (P7).
 
 ---
@@ -292,8 +293,9 @@ The allowed domains are configurable via `ALLOWED_API_DOMAINS` env var. All othe
                 |  +----------+-------------+  |
                 |             v                |
                 |  +------------------------+  |
-                |  | 4. Run ASAN binary      |  |
-                |  |    with crafted input   |  |
+                |  | 4. Run instrumented     |  |
+                |  |    binary with crafted  |  |
+                |  |    input                |  |
                 |  +----------+-------------+  |
                 |             v                |
                 |  +------------------------+  |
