@@ -8,7 +8,7 @@
 
 ## TL;DR
 
-We built a working implementation of Anthropic's **Glasswing/Mythos** autonomous vulnerability discovery methodology. The pipeline successfully performs real security research using Claude Code agents inside isolated Docker containers against AddressSanitizer-instrumented binaries. All five stages of the methodology are operational, audit logging is compliance-ready, and we have evidence from production runs that the agents conduct rigorous hypothesis-driven investigation.
+We built a working implementation of Anthropic's **Glasswing/Mythos** autonomous vulnerability discovery methodology. The pipeline successfully performs real security research using provider-agnostic litellm-based ReAct agents inside isolated Docker containers against AddressSanitizer-instrumented binaries. All five stages of the methodology are operational, audit logging is compliance-ready, and we have evidence from production runs that the agents conduct rigorous hypothesis-driven investigation.
 
 ---
 
@@ -27,7 +27,7 @@ An LLM scores every source file 1-5 by vulnerability likelihood. High-risk files
 Redis priority queue feeds parallel Docker containers. Concurrency controls, spend limits, and timeout management all enforced. Every action logged before execution.
 
 ### Stage 3 — Worker Containers (the core)
-Each container runs **Claude Code in headless mode** against one file:
+Each container runs a **litellm-based ReAct agent** against one file:
 - Reads the source code
 - Forms hypotheses about memory safety bugs
 - Crafts malformed inputs (python scripts)
@@ -35,7 +35,7 @@ Each container runs **Claude Code in headless mode** against one file:
 - Reads ASAN crash output
 - Iterates — this is the Glasswing hypothesis-test loop
 
-Isolated network (single egress: `api.anthropic.com:443`), read-only source, tmpfs workspace, dropped capabilities, memory/CPU limits.
+Isolated network (egress only to configured LLM provider endpoint(s)), read-only source, tmpfs workspace, dropped capabilities, memory/CPU limits.
 
 ### Stage 4 — ASAN Parser & Triage
 Extracts crash metadata, assigns severity tier 1-5, computes CVSS estimate:
@@ -46,7 +46,7 @@ Extracts crash metadata, assigns severity tier 1-5, computes CVSS estimate:
 - Tier 1: Memory leak (CVSS 1.0-3.5)
 
 ### Stage 5 — Validation Agent
-Separate Claude instance reviews each finding: *"Is the ASAN output real? Is the reproduction plausible? Is this a meaningful security issue?"* Filters false positives before human review.
+Separate validation-model call reviews each finding: *"Is the ASAN output real? Is the reproduction plausible? Is this a meaningful security issue?"* Filters false positives before human review.
 
 ---
 
@@ -106,7 +106,7 @@ Every finding requires **explicit human sign-off** before any external action.
 ## Infrastructure Ready for Production
 
 - **Python 3.12** async orchestrator with full test coverage (35 unit tests, 8 integration tests — all passing)
-- **Docker** worker containers with Claude Code 2.1.104, clang 18.1.3, multi-build-system support (autotools, CMake, plain Makefile)
+- **Docker** worker containers with a litellm-based ReAct worker, clang 18.1.3, multi-build-system support (autotools, CMake, plain Makefile)
 - **Redis** priority queue with atomic spend tracking
 - **Postgres** encrypted findings store
 - **SHA-3 audit log** with chain verification CLI

@@ -1,6 +1,6 @@
 # Tasks
 # Mantis — Autonomous Vulnerability Discovery Harness
-# Implementation order for Claude Code
+# Implementation order
 
 ## How to use this file
 
@@ -215,7 +215,7 @@ docker run --rm \
   vuln-harness-worker:latest 2>&1 | tee /tmp/worker-output.json
 ```
 
-**Verify**: Output is valid JSON. `verdict` field is present. Agent made multiple bash calls (visible in Claude Code's turn output). Run completed without container crash.
+**Verify**: Output is valid JSON. `verdict` field is present. Agent made multiple bash calls (visible in worker stderr / tool trace output). Run completed without container crash.
 
 ---
 
@@ -371,12 +371,12 @@ Write complete README covering:
 
 ---
 
-## Implementation notes for Claude Code
+## Implementation notes
 
 - Use `uv` exclusively for Python package management. Never use `pip` directly.
 - All async code uses `asyncio`. No threads except in `audit.py` write lock.
 - All Anthropic API calls use the official `anthropic` Python SDK, not raw HTTP.
-- Claude Code CLI is invoked via `asyncio.create_subprocess_exec`, not `subprocess.run` (blocking).
+- The worker agent runtime must remain provider-agnostic; do not introduce a Claude-specific runtime dependency.
 - All file paths use `pathlib.Path`, never string concatenation.
 - All datetime objects are timezone-aware UTC. Use `datetime.now(timezone.utc)`.
 - All UUIDs use `uuid.uuid4()`. Never use sequential IDs for security-relevant identifiers.

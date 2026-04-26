@@ -2,7 +2,7 @@
 
 **Target**: giflib 5.1.4
 **Discovered by**: Mantis
-**Original harness**: Claude Code agent (sonnet-4-6), 2026-04-14
+**Original harness (historical baseline)**: Claude Code agent (sonnet-4-6), 2026-04-14
 **Updated harness**: litellm-based ReAct agent loop, 2026-04-25
 **Total validated findings**: 3
 
@@ -25,7 +25,7 @@ The updated litellm-based harness was run twice against giflib 5.1.4. Both runs 
 | `3fb19f15-879e-4d40-8d67-21d74c5324ae` | 2026-04-25 | #1, #2, #3 (3 findings) |
 | `d49e47aa-18b0-41d4-a842-f9c346940808` | 2026-04-25 | #1, #2 (2 findings) |
 
-Finding #1 was originally discovered on 2026-04-14 using the Claude Code CLI-based harness (12 of 40 turns, cost $0.74) and has now been replicated by the updated litellm-based harness in both independent runs.
+Finding #1 was originally discovered on 2026-04-14 using a Claude Code CLI-based baseline run (12 of 40 turns, cost $0.74) and has now been replicated by the updated litellm-based harness in both independent runs.
 
 ---
 
@@ -35,7 +35,7 @@ Finding #1 was originally discovered on 2026-04-14 using the Claude Code CLI-bas
 **Severity Tier**: 3 (arbitrary read)
 **CVSS Estimate**: 6.2 (High) -- unconfirmed, awaits human review
 **File**: `util/gif2rgb.c:293` in `DumpScreen2RGB`
-**Original discovery**: Mantis (Claude Code agent, sonnet-4-6), 2026-04-14 (12 of 40 turns, $0.74)
+**Original discovery**: Mantis historical baseline run (Claude Code agent, sonnet-4-6), 2026-04-14 (12 of 40 turns, $0.74)
 **Replicated**: 2026-04-25 by litellm-based harness in run `3fb19f15` (finding `a976bacd`) and run `d49e47aa` (finding `19e74e56`)
 
 ### Description
