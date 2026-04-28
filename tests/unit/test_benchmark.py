@@ -65,30 +65,83 @@ def _write_audit(tmp_path: Path, entries: list[dict]) -> Path:
 
 def test_extract_run_metrics_full(tmp_path):
     entries = [
-        {"seq": 1, "ts": "2026-04-26T10:00:00.000Z", "run_id": "r1", "job_id": None,
-         "event_type": "run_start", "actor": "orchestrator",
-         "payload": {"command": "run"}, "prev_hash": "genesis", "this_hash": "a"},
-        {"seq": 2, "ts": "2026-04-26T10:00:01.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "job_dispatch", "actor": "orchestrator",
-         "payload": {"job_id": "j1", "file_path": "dgif_lib.c", "image": "img"},
-         "prev_hash": "a", "this_hash": "b"},
-        {"seq": 3, "ts": "2026-04-26T10:01:01.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "container_exit", "actor": "orchestrator",
-         "payload": {"job_id": "j1", "exit_code": 0, "stdout_len": 5000,
-                     "wall_clock_seconds": 60.0, "turns_used": 15,
-                     "cost_usd": 0.05, "input_tokens": 10000, "output_tokens": 2000,
-                     "verdict": "found"},
-         "prev_hash": "b", "this_hash": "c"},
-        {"seq": 4, "ts": "2026-04-26T10:01:05.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "llm_call", "actor": "validation_agent",
-         "payload": {"stage": "validation", "model": "openai/gpt-5.4",
-                     "input_tokens": 4000, "output_tokens": 200, "cost_usd": 0.01},
-         "prev_hash": "c", "this_hash": "d"},
-        {"seq": 5, "ts": "2026-04-26T10:01:06.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "finding_validated", "actor": "validation_agent",
-         "payload": {"finding_job_id": "j1", "verdict": "VALIDATE",
-                     "asan_real": True, "repro_plausible": True, "security_meaningful": True},
-         "prev_hash": "d", "this_hash": "e"},
+        {
+            "seq": 1,
+            "ts": "2026-04-26T10:00:00.000Z",
+            "run_id": "r1",
+            "job_id": None,
+            "event_type": "run_start",
+            "actor": "orchestrator",
+            "payload": {"command": "run"},
+            "prev_hash": "genesis",
+            "this_hash": "a",
+        },
+        {
+            "seq": 2,
+            "ts": "2026-04-26T10:00:01.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "job_dispatch",
+            "actor": "orchestrator",
+            "payload": {"job_id": "j1", "file_path": "dgif_lib.c", "image": "img"},
+            "prev_hash": "a",
+            "this_hash": "b",
+        },
+        {
+            "seq": 3,
+            "ts": "2026-04-26T10:01:01.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "container_exit",
+            "actor": "orchestrator",
+            "payload": {
+                "job_id": "j1",
+                "exit_code": 0,
+                "stdout_len": 5000,
+                "wall_clock_seconds": 60.0,
+                "turns_used": 15,
+                "cost_usd": 0.05,
+                "input_tokens": 10000,
+                "output_tokens": 2000,
+                "verdict": "found",
+            },
+            "prev_hash": "b",
+            "this_hash": "c",
+        },
+        {
+            "seq": 4,
+            "ts": "2026-04-26T10:01:05.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "llm_call",
+            "actor": "validation_agent",
+            "payload": {
+                "stage": "validation",
+                "model": "openai/gpt-5.4",
+                "input_tokens": 4000,
+                "output_tokens": 200,
+                "cost_usd": 0.01,
+            },
+            "prev_hash": "c",
+            "this_hash": "d",
+        },
+        {
+            "seq": 5,
+            "ts": "2026-04-26T10:01:06.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "finding_validated",
+            "actor": "validation_agent",
+            "payload": {
+                "finding_job_id": "j1",
+                "verdict": "VALIDATE",
+                "asan_real": True,
+                "repro_plausible": True,
+                "security_meaningful": True,
+            },
+            "prev_hash": "d",
+            "this_hash": "e",
+        },
     ]
     metrics = extract_run_metrics(_write_audit(tmp_path, entries))
     assert metrics["jobs_dispatched"] == 1
@@ -107,18 +160,46 @@ def test_extract_run_metrics_full(tmp_path):
 
 def test_extract_run_metrics_no_findings(tmp_path):
     entries = [
-        {"seq": 1, "ts": "2026-04-26T10:00:00.000Z", "run_id": "r1", "job_id": None,
-         "event_type": "run_start", "actor": "orchestrator",
-         "payload": {"command": "run"}, "prev_hash": "genesis", "this_hash": "a"},
-        {"seq": 2, "ts": "2026-04-26T10:00:01.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "job_dispatch", "actor": "orchestrator",
-         "payload": {"job_id": "j1", "file_path": "test.c", "image": "img"},
-         "prev_hash": "a", "this_hash": "b"},
-        {"seq": 3, "ts": "2026-04-26T10:00:30.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "container_exit", "actor": "orchestrator",
-         "payload": {"job_id": "j1", "exit_code": 0, "stdout_len": 100,
-                     "wall_clock_seconds": 29.0, "turns_used": 5, "verdict": "not_found"},
-         "prev_hash": "b", "this_hash": "c"},
+        {
+            "seq": 1,
+            "ts": "2026-04-26T10:00:00.000Z",
+            "run_id": "r1",
+            "job_id": None,
+            "event_type": "run_start",
+            "actor": "orchestrator",
+            "payload": {"command": "run"},
+            "prev_hash": "genesis",
+            "this_hash": "a",
+        },
+        {
+            "seq": 2,
+            "ts": "2026-04-26T10:00:01.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "job_dispatch",
+            "actor": "orchestrator",
+            "payload": {"job_id": "j1", "file_path": "test.c", "image": "img"},
+            "prev_hash": "a",
+            "this_hash": "b",
+        },
+        {
+            "seq": 3,
+            "ts": "2026-04-26T10:00:30.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "container_exit",
+            "actor": "orchestrator",
+            "payload": {
+                "job_id": "j1",
+                "exit_code": 0,
+                "stdout_len": 100,
+                "wall_clock_seconds": 29.0,
+                "turns_used": 5,
+                "verdict": "not_found",
+            },
+            "prev_hash": "b",
+            "this_hash": "c",
+        },
     ]
     metrics = extract_run_metrics(_write_audit(tmp_path, entries))
     assert metrics["jobs_dispatched"] == 1
@@ -130,18 +211,40 @@ def test_extract_run_metrics_no_findings(tmp_path):
 def test_extract_run_metrics_backward_compat(tmp_path):
     """Old audit logs without telemetry fields don't crash."""
     entries = [
-        {"seq": 1, "ts": "2026-04-26T10:00:00.000Z", "run_id": "r1", "job_id": None,
-         "event_type": "run_start", "actor": "orchestrator",
-         "payload": {"command": "run"}, "prev_hash": "genesis", "this_hash": "a"},
-        {"seq": 2, "ts": "2026-04-26T10:00:01.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "job_dispatch", "actor": "orchestrator",
-         "payload": {"job_id": "j1", "file_path": "test.c", "image": "img"},
-         "prev_hash": "a", "this_hash": "b"},
+        {
+            "seq": 1,
+            "ts": "2026-04-26T10:00:00.000Z",
+            "run_id": "r1",
+            "job_id": None,
+            "event_type": "run_start",
+            "actor": "orchestrator",
+            "payload": {"command": "run"},
+            "prev_hash": "genesis",
+            "this_hash": "a",
+        },
+        {
+            "seq": 2,
+            "ts": "2026-04-26T10:00:01.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "job_dispatch",
+            "actor": "orchestrator",
+            "payload": {"job_id": "j1", "file_path": "test.c", "image": "img"},
+            "prev_hash": "a",
+            "this_hash": "b",
+        },
         # Old format: only exit_code and stdout_len, no telemetry
-        {"seq": 3, "ts": "2026-04-26T10:00:30.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "container_exit", "actor": "orchestrator",
-         "payload": {"job_id": "j1", "exit_code": 0, "stdout_len": 100},
-         "prev_hash": "b", "this_hash": "c"},
+        {
+            "seq": 3,
+            "ts": "2026-04-26T10:00:30.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "container_exit",
+            "actor": "orchestrator",
+            "payload": {"job_id": "j1", "exit_code": 0, "stdout_len": 100},
+            "prev_hash": "b",
+            "this_hash": "c",
+        },
     ]
     metrics = extract_run_metrics(_write_audit(tmp_path, entries))
     assert metrics["jobs_dispatched"] == 1
@@ -153,18 +256,45 @@ def test_extract_run_metrics_backward_compat(tmp_path):
 def test_extract_run_metrics_timeout(tmp_path):
     """Timed-out containers count as dispatched but not as findings."""
     entries = [
-        {"seq": 1, "ts": "2026-04-26T10:00:00.000Z", "run_id": "r1", "job_id": None,
-         "event_type": "run_start", "actor": "orchestrator",
-         "payload": {"command": "run"}, "prev_hash": "genesis", "this_hash": "a"},
-        {"seq": 2, "ts": "2026-04-26T10:00:01.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "job_dispatch", "actor": "orchestrator",
-         "payload": {"job_id": "j1", "file_path": "test.c", "image": "img"},
-         "prev_hash": "a", "this_hash": "b"},
-        {"seq": 3, "ts": "2026-04-26T10:20:01.000Z", "run_id": "r1", "job_id": "j1",
-         "event_type": "container_exit", "actor": "orchestrator",
-         "payload": {"job_id": "j1", "exit_code": -1, "reason": "timeout",
-                     "stdout_len": 0, "wall_clock_seconds": 1200.0},
-         "prev_hash": "b", "this_hash": "c"},
+        {
+            "seq": 1,
+            "ts": "2026-04-26T10:00:00.000Z",
+            "run_id": "r1",
+            "job_id": None,
+            "event_type": "run_start",
+            "actor": "orchestrator",
+            "payload": {"command": "run"},
+            "prev_hash": "genesis",
+            "this_hash": "a",
+        },
+        {
+            "seq": 2,
+            "ts": "2026-04-26T10:00:01.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "job_dispatch",
+            "actor": "orchestrator",
+            "payload": {"job_id": "j1", "file_path": "test.c", "image": "img"},
+            "prev_hash": "a",
+            "this_hash": "b",
+        },
+        {
+            "seq": 3,
+            "ts": "2026-04-26T10:20:01.000Z",
+            "run_id": "r1",
+            "job_id": "j1",
+            "event_type": "container_exit",
+            "actor": "orchestrator",
+            "payload": {
+                "job_id": "j1",
+                "exit_code": -1,
+                "reason": "timeout",
+                "stdout_len": 0,
+                "wall_clock_seconds": 1200.0,
+            },
+            "prev_hash": "b",
+            "this_hash": "c",
+        },
     ]
     metrics = extract_run_metrics(_write_audit(tmp_path, entries))
     assert metrics["jobs_dispatched"] == 1
@@ -177,15 +307,33 @@ def test_extract_run_metrics_timeout(tmp_path):
 
 def test_aggregate_trials():
     trials = [
-        {"findings_count": 3, "validated_count": 2, "rejected_count": 1,
-         "total_cost_usd": 0.10, "avg_turns_per_job": 12.0, "total_wall_clock_seconds": 120.0,
-         "false_positive_rate": 33.3},
-        {"findings_count": 2, "validated_count": 2, "rejected_count": 0,
-         "total_cost_usd": 0.08, "avg_turns_per_job": 10.0, "total_wall_clock_seconds": 100.0,
-         "false_positive_rate": 0.0},
-        {"findings_count": 3, "validated_count": 3, "rejected_count": 0,
-         "total_cost_usd": 0.12, "avg_turns_per_job": 14.0, "total_wall_clock_seconds": 140.0,
-         "false_positive_rate": 0.0},
+        {
+            "findings_count": 3,
+            "validated_count": 2,
+            "rejected_count": 1,
+            "total_cost_usd": 0.10,
+            "avg_turns_per_job": 12.0,
+            "total_wall_clock_seconds": 120.0,
+            "false_positive_rate": 33.3,
+        },
+        {
+            "findings_count": 2,
+            "validated_count": 2,
+            "rejected_count": 0,
+            "total_cost_usd": 0.08,
+            "avg_turns_per_job": 10.0,
+            "total_wall_clock_seconds": 100.0,
+            "false_positive_rate": 0.0,
+        },
+        {
+            "findings_count": 3,
+            "validated_count": 3,
+            "rejected_count": 0,
+            "total_cost_usd": 0.12,
+            "avg_turns_per_job": 14.0,
+            "total_wall_clock_seconds": 140.0,
+            "false_positive_rate": 0.0,
+        },
     ]
     agg = aggregate_trials(trials)
     assert agg["trials"] == 3
@@ -199,9 +347,17 @@ def test_aggregate_trials():
 
 
 def test_aggregate_single_trial():
-    trials = [{"findings_count": 3, "validated_count": 3, "rejected_count": 0,
-               "total_cost_usd": 0.10, "avg_turns_per_job": 12.0,
-               "total_wall_clock_seconds": 120.0, "false_positive_rate": 0.0}]
+    trials = [
+        {
+            "findings_count": 3,
+            "validated_count": 3,
+            "rejected_count": 0,
+            "total_cost_usd": 0.10,
+            "avg_turns_per_job": 12.0,
+            "total_wall_clock_seconds": 120.0,
+            "false_positive_rate": 0.0,
+        }
+    ]
     agg = aggregate_trials(trials)
     assert agg["trials"] == 1
     assert agg["std_findings"] == pytest.approx(0.0)
@@ -217,12 +373,22 @@ def test_aggregate_zero_trials():
 
 def test_format_comparison_table():
     results = {
-        "openai/gpt-5.4": {"trials": 3, "avg_findings": 8.0, "avg_validated": 6.0,
-                           "avg_cost_usd": 0.11, "avg_turns_per_job": 15.0,
-                           "avg_wall_clock_seconds": 300.0},
-        "openai/gpt-4o": {"trials": 3, "avg_findings": 0.0, "avg_validated": 0.0,
-                          "avg_cost_usd": 0.00, "avg_turns_per_job": 5.0,
-                          "avg_wall_clock_seconds": 120.0},
+        "openai/gpt-5.4": {
+            "trials": 3,
+            "avg_findings": 8.0,
+            "avg_validated": 6.0,
+            "avg_cost_usd": 0.11,
+            "avg_turns_per_job": 15.0,
+            "avg_wall_clock_seconds": 300.0,
+        },
+        "openai/gpt-4o": {
+            "trials": 3,
+            "avg_findings": 0.0,
+            "avg_validated": 0.0,
+            "avg_cost_usd": 0.00,
+            "avg_turns_per_job": 5.0,
+            "avg_wall_clock_seconds": 120.0,
+        },
     }
     table = format_comparison_table(results, known_findings=3)
     assert "gpt-5.4" in table
@@ -232,8 +398,15 @@ def test_format_comparison_table():
 
 
 def test_format_comparison_table_zero_known():
-    results = {"openai/gpt-4o": {"trials": 1, "avg_findings": 2.0, "avg_validated": 1.0,
-                                  "avg_cost_usd": 0.05, "avg_turns_per_job": 10.0,
-                                  "avg_wall_clock_seconds": 60.0}}
+    results = {
+        "openai/gpt-4o": {
+            "trials": 1,
+            "avg_findings": 2.0,
+            "avg_validated": 1.0,
+            "avg_cost_usd": 0.05,
+            "avg_turns_per_job": 10.0,
+            "avg_wall_clock_seconds": 60.0,
+        }
+    }
     table = format_comparison_table(results, known_findings=0)
     assert "N/A" in table
