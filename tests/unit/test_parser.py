@@ -194,6 +194,39 @@ def test_tsan_data_race(tsan_output: str):
     assert 5.0 <= finding.cvss_estimate <= 7.5
 
 
+def test_telemetry_fields_extracted():
+    agent = json.loads(Path("tests/fixtures/agent_output_with_telemetry.json").read_text())
+    stdout = json.dumps(agent)
+    finding = parse_result(stdout, "", job_id="j1", run_id="r1")
+    assert finding is not None
+    assert finding.turns_used == 12
+    assert finding.agent_cost_usd == 0.0234
+    assert finding.agent_input_tokens == 15420
+    assert finding.agent_output_tokens == 3891
+
+
+def test_telemetry_fields_default_when_missing():
+    """Backward compat: old agent output without telemetry still parses."""
+    agent = {
+        "verdict": "found",
+        "vuln_type": "heap-buffer-overflow",
+        "file": "x.c",
+        "line": 1,
+        "function": "main",
+        "description": "test",
+        "asan_output": "ERROR: AddressSanitizer: heap-buffer-overflow\nREAD of size 1\n    #0 in main x.c:1",
+    }
+    stdout = json.dumps(agent)
+    finding = parse_result(stdout, "", job_id="j1", run_id="r1")
+    assert finding is not None
+    assert finding.turns_used is None
+    assert finding.agent_cost_usd is None
+    assert finding.agent_input_tokens is None
+    assert finding.agent_output_tokens is None
+    assert finding.vuln_type == "heap-buffer-overflow"
+    assert finding.file == "x.c"
+
+
 def test_asan_still_works_with_multi_sanitizer_patterns(sample_asan: str):
     """Regression: existing ASAN output still parses correctly after adding new patterns."""
     agent = {
