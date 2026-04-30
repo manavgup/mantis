@@ -88,6 +88,10 @@ async def _run_container(
     if bin_path:
         bin_real = os.path.realpath(bin_path)
         cmd.extend(["-v", f"{bin_real}:/target/bin:ro"])
+    # Mount custom prompts if configured (overrides baked-in /prompts/)
+    if config.worker_prompts_dir:
+        prompts_real = os.path.realpath(config.worker_prompts_dir)
+        cmd.extend(["-v", f"{prompts_real}:/prompts:ro"])
     # Pass through provider API keys from environment (litellm reads them automatically)
     for key_name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"):
         key_val = os.environ.get(key_name)

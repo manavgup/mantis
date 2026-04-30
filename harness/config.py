@@ -77,6 +77,7 @@ class Config(BaseSettings):
     max_day_spend_usd: float = 500.0
 
     # Container
+    worker_prompts_dir: str = ""  # Override prompt templates (mounted into container at /prompts)
     worker_image: str = "vuln-harness-worker:latest"
     container_timeout_seconds: int = 1800
     worker_memory_gb: int = 4
