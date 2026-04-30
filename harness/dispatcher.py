@@ -31,12 +31,31 @@ def _save_stderr(run_dir: str | None, job_id: str, stderr_bytes: bytes) -> None:
 
 
 def _extract_telemetry(stdout: str, job_id: str) -> dict:
-    """Extract agent telemetry from stdout JSON. Returns dict of fields or empty dict on failure."""
+    """Extract agent telemetry from stdout JSON. Returns dict of fields or empty dict on failure.
+
+    Handles litellm debug output before the JSON (e.g. "LiteLLM.Info: ..." lines on stdout).
+    """
+    import re
+
     try:
         agent_out = _json.loads(stdout)
-        if isinstance(agent_out, dict) and agent_out.get("type") == "result":
-            import re
+    except (ValueError, TypeError):
+        # stdout may have non-JSON preamble (litellm debug lines) — scan for JSON object
+        agent_out = None
+        match = re.search(r"\{.*\}", stdout, re.DOTALL)
+        if match:
+            try:
+                agent_out = _json.loads(match.group(0))
+            except (ValueError, TypeError):
+                pass
 
+    if agent_out is None:
+        logger.warning("Failed to extract telemetry from job %s: no valid JSON in stdout", job_id)
+        return {}
+
+    try:
+        # Handle Claude Code wrapper format
+        if isinstance(agent_out, dict) and agent_out.get("type") == "result":
             inner = agent_out.get("result", "")
             if isinstance(inner, str):
                 m = re.search(r"\{.*\}", inner, re.DOTALL)
