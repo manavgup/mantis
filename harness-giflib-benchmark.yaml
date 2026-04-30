@@ -1,0 +1,26 @@
+repo_url: /Users/mg/mg-work/manav/work/ai-experiments/mantis/runs/giflib514-src
+repo_commit: master
+binary_name: gif2rgb
+project_name: giflib
+project_description: "GIF image format library (v5.1.4) — reads and writes GIF files. Includes utilities like gif2rgb that convert GIF images to RGB format using colormaps."
+exclude_patterns:
+  - "*/test/*"
+  - "*/tests/*"
+  - "*/doc/*"
+  - "*/m4/*"
+max_files_to_scan: 10
+ranking_strategy: static
+worker_model: anthropic/claude-sonnet-4-6
+validation_model: anthropic/claude-sonnet-4-6
+max_turns_per_worker: 30
+max_parallel_workers: 2
+max_run_spend_usd: 50.0
+max_day_spend_usd: 500.0
+worker_image: vuln-harness-worker:latest
+container_timeout_seconds: 1200
+worker_memory_gb: 4
+worker_cpus: 2
+redis_url: redis://localhost:6379
+postgres_url: postgresql://harness:testpass@localhost:5432/vulnharness
+run_output_dir: ./runs
+findings_encryption_key_env: FINDINGS_ENC_KEY
