@@ -1,0 +1,17 @@
+{
+  "verdict": "found",
+  "vuln_type": "heap-buffer-overflow",
+  "file": "util/gif2rgb.c",
+  "line": 293,
+  "function": "DumpScreen2RGB",
+  "description": "OOB read via palette index",
+  "asan_output": "ERROR: AddressSanitizer: heap-buffer-overflow on address 0x502000000288\nREAD of size 1 at 0x502000000288 thread T0\n    #0 in DumpScreen2RGB /tmp/src/util/gif2rgb.c:293:45",
+  "reproduction": "python3 -c 'print(\"trigger\")' | gif2rgb",
+  "candidate_patch": "add bounds check on GifRow[j]",
+  "confidence": "high",
+  "reasoning": "ASAN confirms heap OOB read past palette allocation",
+  "turns_used": 12,
+  "cost_usd": 0.0234,
+  "input_tokens": 15420,
+  "output_tokens": 3891
+}

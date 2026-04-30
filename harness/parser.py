@@ -101,6 +101,11 @@ class ParsedFinding:
     agent_reasoning: str | None
     description: str | None
     raw_agent_output: dict
+    # Agent telemetry (None if not available — backward compatible)
+    turns_used: int | None = None
+    agent_cost_usd: float | None = None
+    agent_input_tokens: int | None = None
+    agent_output_tokens: int | None = None
 
 
 def _detect_vuln_type(asan_text: str) -> str | None:
@@ -243,4 +248,8 @@ def parse_result(
         agent_reasoning=agent_json.get("reasoning"),
         description=agent_json.get("description"),
         raw_agent_output=agent_json,
+        turns_used=agent_json.get("turns_used"),
+        agent_cost_usd=agent_json.get("cost_usd"),
+        agent_input_tokens=agent_json.get("input_tokens"),
+        agent_output_tokens=agent_json.get("output_tokens"),
     )
