@@ -339,7 +339,7 @@ def run(config_path: str, bin_dir: str | None):
         click.echo("Stage 3: Dispatching workers (compiling per container)...")
     from harness.dispatcher import dispatch_run
 
-    results = asyncio.run(dispatch_run(run_id, cfg, audit, repo_path=repo_path, bin_path=bin_dir))
+    results = asyncio.run(dispatch_run(run_id, cfg, audit, repo_path=repo_path, bin_path=bin_dir, run_dir=str(run_dir)))
     click.echo(f"  Completed {len(results)} containers")
 
     # Step 5: Parse and validate
