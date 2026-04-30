@@ -526,3 +526,211 @@ def cost(run_id: str, config_path: str):
     for stage, c in sorted(by_stage.items()):
         click.echo(f"  {stage}: ${c:.4f}")
     click.echo(f"  Total: ${total:.4f}")
+
+
+@cli.command()
+@click.option("--config", "config_path", required=True, help="Path to harness.yaml")
+@click.option("--models", required=True, help="Comma-separated litellm model strings")
+@click.option("--trials", default=3, help="Number of runs per model")
+@click.option("--known-findings", default=3, help="Known true-positive count in target")
+@click.option("--output", "output_path", default=None, help="Write markdown report to file")
+def benchmark(config_path: str, models: str, trials: int, known_findings: int, output_path: str | None):
+    """Run multiple models against the same target and compare results."""
+    from harness.benchmark import aggregate_trials, extract_run_metrics, format_comparison_table, validate_model_string
+
+    model_list = [m.strip() for m in models.split(",")]
+
+    for model in model_list:
+        if not validate_model_string(model):
+            raise click.BadParameter(
+                f"Invalid model string: '{model}'. Expected format: provider/model-name "
+                f"(e.g. anthropic/claude-sonnet-4-6, openai/gpt-5.4, ollama/granite-code:8b)",
+                param_hint="--models",
+            )
+
+    os.environ.setdefault("HARNESS_CONFIG", config_path)
+    from harness.config import Config
+
+    all_results: dict[str, dict] = {}
+
+    for model in model_list:
+        click.echo(f"\n{'=' * 60}")
+        click.echo(f"Benchmarking: {model} ({trials} trials)")
+        click.echo(f"{'=' * 60}")
+
+        trial_metrics = []
+        for trial in range(1, trials + 1):
+            click.echo(f"\n--- Trial {trial}/{trials} ---")
+
+            os.environ["WORKER_MODEL"] = model
+            os.environ["VALIDATION_MODEL"] = model
+
+            cfg = Config()
+            trial_run_id = str(uuid.uuid4())
+            run_dir = cfg.run_output_dir / trial_run_id
+            run_dir.mkdir(parents=True, exist_ok=True)
+            (run_dir / "findings").mkdir(exist_ok=True)
+
+            audit = AuditLog(run_dir / "audit.jsonl")
+            audit.write(
+                run_id=trial_run_id,
+                event_type="run_start",
+                actor="orchestrator",
+                payload={"command": "benchmark", "model": model, "trial": trial, "config": config_path},
+            )
+
+            repo_path = _clone_repo(cfg, run_dir)
+
+            auto_bin_dir = run_dir / "bin"
+            auto_bin_dir.mkdir(exist_ok=True)
+            _build_sanitized_binaries(cfg, repo_path, auto_bin_dir, trial_run_id, audit=audit)
+
+            from harness.ranker import rank_files, write_rankings_json
+
+            ranked = asyncio.run(
+                rank_files(
+                    run_id=trial_run_id,
+                    repo_path=repo_path,
+                    exclude_patterns=cfg.exclude_patterns,
+                    ranking_model=cfg.ranking_model,
+                    max_files_to_scan=cfg.max_files_to_scan,
+                    audit=audit,
+                    strategy=cfg.ranking_strategy,
+                )
+            )
+            write_rankings_json(
+                run_dir=run_dir,
+                run_id=trial_run_id,
+                repo_url=cfg.repo_url,
+                repo_commit=cfg.repo_commit,
+                ranked_files=ranked,
+                total_files=len(ranked),
+                excluded=0,
+                cost=0.0,
+            )
+
+            from harness.dispatcher import dispatch_run
+            from harness.queue import enqueue_jobs
+
+            asyncio.run(enqueue_jobs(trial_run_id, ranked, cfg.redis_url))
+            results = asyncio.run(
+                dispatch_run(trial_run_id, cfg, audit, repo_path=repo_path, bin_path=str(auto_bin_dir))
+            )
+
+            from harness.parser import parse_result
+            from harness.validator import validate_finding
+
+            for job_id_r, stdout, stderr, exit_code in results:
+                finding = parse_result(stdout, stderr, job_id=job_id_r, run_id=trial_run_id)
+                if finding is None:
+                    continue
+                asyncio.run(validate_finding(finding, cfg, audit))
+
+            metrics = extract_run_metrics(run_dir / "audit.jsonl")
+            trial_metrics.append(metrics)
+            click.echo(
+                f"  Findings: {metrics['findings_count']}, "
+                f"Validated: {metrics['validated_count']}, "
+                f"Cost: ${metrics['total_cost_usd']:.4f}, "
+                f"Time: {metrics['total_wall_clock_seconds']:.0f}s"
+            )
+
+        all_results[model] = aggregate_trials(trial_metrics)
+
+    click.echo(f"\n{'=' * 60}")
+    click.echo("BENCHMARK RESULTS")
+    click.echo(f"{'=' * 60}\n")
+    table = format_comparison_table(all_results, known_findings=known_findings)
+    click.echo(table)
+
+    if output_path:
+        from datetime import datetime, timezone
+
+        report = "\n".join(
+            [
+                "# Mantis Backend Benchmark Results\n",
+                f"**Date**: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+                f"**Trials per model**: {trials}",
+                f"**Known findings**: {known_findings}\n",
+                table,
+            ]
+        )
+        Path(output_path).write_text(report)
+        click.echo(f"\nReport: {output_path}")
+
+
+@cli.command()
+@click.option("--run-id", required=True, help="Run ID to extract traces from")
+@click.option("--config", "config_path", default="./harness.yaml", help="Path to harness.yaml")
+@click.option("--format", "fmt", type=click.Choice(["markdown", "json"]), default="markdown", help="Output format")
+@click.option("--judge", is_flag=True, default=False, help="Run LLM judge on traces")
+@click.option("--judge-model", default="anthropic/claude-opus-4-7", help="Model for judging")
+@click.option("--sample", default=10, help="Number of traces to judge")
+@click.option("--output", "output_path", default=None, help="Write results to file")
+def trace(run_id: str, config_path: str, fmt: str, judge: bool, judge_model: str, sample: int, output_path: str | None):
+    """Extract agent traces and optionally run LLM judge."""
+    import json
+    import random
+
+    from harness.benchmark import validate_model_string
+    from harness.trace import extract_trace, format_trace_markdown, judge_trace
+
+    os.environ.setdefault("HARNESS_CONFIG", config_path)
+    from harness.config import Config
+
+    cfg = Config()
+
+    run_dir = cfg.run_output_dir / run_id
+    if not run_dir.exists():
+        click.echo(f"Run directory not found: {run_dir}")
+        raise SystemExit(1)
+
+    stderr_logs = sorted(run_dir.glob("*.stderr.log"))
+    if not stderr_logs:
+        click.echo(f"No stderr logs found in {run_dir}")
+        raise SystemExit(1)
+
+    click.echo(f"Found {len(stderr_logs)} traces in run {run_id}")
+
+    traces = []
+    for log_path in stderr_logs:
+        job_id = log_path.stem.replace(".stderr", "")
+        trace_data = extract_trace(log_path)
+        if trace_data:
+            traces.append({"job_id": job_id, "trace": trace_data, "path": str(log_path)})
+
+    click.echo(f"Extracted {len(traces)} non-empty traces")
+
+    if fmt == "markdown":
+        for t in traces:
+            md = format_trace_markdown(t["trace"], job_id=t["job_id"], file_path="", verdict=None)
+            click.echo(md)
+            click.echo("---\n")
+    else:
+        click.echo(json.dumps([{"job_id": t["job_id"], "trace": t["trace"]} for t in traces], indent=2))
+
+    if judge:
+        if not validate_model_string(judge_model):
+            raise click.BadParameter(f"Invalid judge model: '{judge_model}'", param_hint="--judge-model")
+
+        to_judge = random.sample(traces, min(sample, len(traces)))
+        click.echo(f"\nJudging {len(to_judge)} traces with {judge_model}...")
+
+        scores = []
+        for t in to_judge:
+            md = format_trace_markdown(t["trace"], job_id=t["job_id"], file_path="", verdict=None)
+            result = asyncio.run(judge_trace(md, model=judge_model))
+            if result:
+                scores.append(result)
+                flag = " DISAGREEMENT" if result["judge_disagreement"] else ""
+                click.echo(f"  {t['job_id'][:8]}: overall={result['overall']}{flag}")
+            else:
+                click.echo(f"  {t['job_id'][:8]}: FAILED (no valid scores)")
+
+        if scores:
+            avg_overall = sum(s["overall"] for s in scores) / len(scores)
+            click.echo(f"\nAverage overall score: {avg_overall:.1f}/5 ({len(scores)} traces judged)")
+
+        if output_path:
+            Path(output_path).write_text(json.dumps(scores, indent=2))
+            click.echo(f"Scores written to: {output_path}")
