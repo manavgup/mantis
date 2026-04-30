@@ -201,15 +201,15 @@ Postgres via `asyncpg`. Manages `runs`, `jobs`, `findings` tables. Generates the
 Click-based CLI. Entry points:
 
 ```
-vuln-harness run --config harness.yaml        # full pipeline run
-vuln-harness rank --config harness.yaml       # stage 1 only, print ranked files
-vuln-harness review --run-id <uuid>           # list findings awaiting review
-vuln-harness approve --finding-id <uuid> \
+mantis run --config harness.yaml        # full pipeline run
+mantis rank --config harness.yaml       # stage 1 only, print ranked files
+mantis review --run-id <uuid>           # list findings awaiting review
+mantis approve --finding-id <uuid> \
   --reviewer "Name" \
   --cvss 7.5 \
   --approve-disclosure                        # record human sign-off
-vuln-harness audit-verify --run-id <uuid>    # verify hash chain integrity
-vuln-harness cost --run-id <uuid>            # print cost breakdown
+mantis audit-verify --run-id <uuid>    # verify hash chain integrity
+mantis cost --run-id <uuid>            # print cost breakdown
 ```
 
 ---

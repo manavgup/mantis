@@ -16,7 +16,7 @@ Built for enterprise use in regulated industries. Satisfies NIST frameworks and 
 
 ```bash
 # 1. Clone and install dependencies
-git clone <repo-url> && cd vuln-harness
+git clone <repo-url> && cd mantis
 uv sync
 
 # 2. Start Redis and Postgres
@@ -42,7 +42,7 @@ export OPENAI_API_KEY=sk-...           # for OpenAI models
 # export VALIDATION_MODEL=openai/gpt-4o
 
 export FINDINGS_ENC_KEY=$(python3 -c "import os,base64; print(base64.b64encode(os.urandom(32)).decode())")
-vuln-harness run --config harness.yaml
+mantis run --config harness.yaml
 ```
 
 ## Architecture overview
@@ -83,13 +83,13 @@ export OPENAI_API_KEY=sk-...
 export WORKER_MODEL=openai/gpt-4o
 export RANKING_MODEL=openai/gpt-4o
 export VALIDATION_MODEL=openai/gpt-4o
-vuln-harness run --config harness.yaml
+mantis run --config harness.yaml
 
 # Switch to Ollama (local)
 export WORKER_MODEL=ollama/llama3
 export RANKING_MODEL=ollama/llama3
 export VALIDATION_MODEL=ollama/llama3
-vuln-harness run --config harness.yaml
+mantis run --config harness.yaml
 ```
 
 The YAML configs default to Anthropic models, but any [litellm-supported provider](https://docs.litellm.ai/docs/providers) works. Any field in `harness/config.py` can be overridden by setting an env var with the matching name.
@@ -109,28 +109,28 @@ The YAML configs default to Anthropic models, but any [litellm-supported provide
 
 ```bash
 # Pre-compile target with ASAN (binaries reused across workers)
-vuln-harness build --config harness.yaml
+mantis build --config harness.yaml
 
 # Full pipeline (auto-builds, then dispatches workers)
-vuln-harness run --config harness.yaml
+mantis run --config harness.yaml
 
 # Use pre-compiled binaries from a previous build
-vuln-harness run --config harness.yaml --bin-dir runs/<run-id>/bin
+mantis run --config harness.yaml --bin-dir runs/<run-id>/bin
 
 # Stage 1 only: rank files by vulnerability likelihood
-vuln-harness rank --config harness.yaml
+mantis rank --config harness.yaml
 
 # List findings awaiting human review
-vuln-harness review --run-id <uuid>
+mantis review --run-id <uuid>
 
 # Record human sign-off on a finding
-vuln-harness approve --finding-id <uuid> --reviewer "Name" --cvss 7.5 --approve-disclosure
+mantis approve --finding-id <uuid> --reviewer "Name" --cvss 7.5 --approve-disclosure
 
 # Verify audit log hash chain integrity
-vuln-harness audit-verify --run-id <uuid>
+mantis audit-verify --run-id <uuid>
 
 # Print cost breakdown for a run
-vuln-harness cost --run-id <uuid>
+mantis cost --run-id <uuid>
 ```
 
 ## Development
