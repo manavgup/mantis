@@ -7,7 +7,7 @@ Three vulnerabilities discovered by Mantis in giflib 5.1.4, each with a standalo
 Build giflib 5.1.4 with AddressSanitizer:
 
 ```bash
-vuln-harness build --config harness-giflib.yaml
+mantis build --config harness-giflib.yaml
 # Or manually:
 cd runs/giflib514-src
 export CC=clang CFLAGS="-fsanitize=address -g -O1 -fno-omit-frame-pointer"

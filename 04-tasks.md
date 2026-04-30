@@ -112,13 +112,13 @@ Add a fixture `tests/fixtures/sample_ranking_response.json` with a realistic mod
 **Verify**: `uv run pytest tests/unit/test_ranker.py -v` passes.
 
 ### Task 2.2 — CLI `rank` subcommand
-Implement `vuln-harness rank --config harness.yaml` in `harness/cli.py`.
+Implement `mantis rank --config harness.yaml` in `harness/cli.py`.
 - Creates a run directory under `{run_output_dir}/{run_id}/`
 - Calls `rank_files()`
 - Pretty-prints ranked files table to stdout: rank | score | path | reason
 - Prints total files, excluded files, cost
 
-**Verify**: With a real `harness.yaml` pointing to a real C repo (e.g. sqlite), `vuln-harness rank` prints a sensible ranked list. Top files should be parsers, I/O handlers, not headers or test files.
+**Verify**: With a real `harness.yaml` pointing to a real C repo (e.g. sqlite), `mantis rank` prints a sensible ranked list. Top files should be parsers, I/O handlers, not headers or test files.
 
 ---
 
@@ -171,7 +171,7 @@ Jinja2 template. Variables: `file_path`, `project_name`, `project_description`, 
 ### Task 4.3 — `worker/entrypoint.sh`
 Shell script (bash). Steps exactly as in specification:
 1. `set -euo pipefail`
-2. Print "=== vuln-harness worker starting ===" with timestamp
+2. Print "=== mantis worker starting ===" with timestamp
 3. Render task prompt from Jinja2 template using Python one-liner
 4. `cd /target/src`
 5. `git submodule update --init --recursive 2>/dev/null || true`
@@ -291,7 +291,7 @@ The `run` command:
    c. If validated: call `store_finding()`, generate and write report markdown
 7. Print summary: jobs run, findings found, validated, rejected, total cost
 
-**Verify**: `vuln-harness --help` shows all subcommands. `vuln-harness run --help` shows all options.
+**Verify**: `mantis --help` shows all subcommands. `mantis run --help` shows all options.
 
 ### Task 7.2 — Full local pipeline test
 Run the complete pipeline against a real target. Use sqlite (small, C, OSS-Fuzz corpus):
@@ -313,17 +313,17 @@ postgres_url: postgresql://harness:${POSTGRES_PASSWORD}@localhost:5432/vulnharne
 run_output_dir: ./runs
 EOF
 
-vuln-harness run --config harness.yaml
+mantis run --config harness.yaml
 ```
 
 **Verify**:
 - Run completes without unhandled exceptions
 - `runs/` directory contains `file_rankings.json` and `audit.jsonl`
 - `audit.jsonl` has entries for `run_start`, `job_dispatch`, `container_exit`, `llm_call`
-- `vuln-harness audit-verify --run-id <uuid>` prints "Chain valid"
-- `vuln-harness cost --run-id <uuid>` prints itemized cost under $20
+- `mantis audit-verify --run-id <uuid>` prints "Chain valid"
+- `mantis cost --run-id <uuid>` prints itemized cost under $20
 - At least one finding produced (even if validation rejects it — `audit.jsonl` should show the validation call)
-- `vuln-harness review --run-id <uuid>` shows findings table
+- `mantis review --run-id <uuid>` shows findings table
 
 ---
 
@@ -350,7 +350,7 @@ Verify spend limit actually stops dispatch:
 
 **Verify**: `audit.jsonl` contains a `spend_limit_reached` event. No more than 2 containers were dispatched.
 
-### Task 8.3 — `vuln-harness audit-verify` correctness test
+### Task 8.3 — `mantis audit-verify` correctness test
 - Run a pipeline, collect `audit.jsonl`
 - Manually corrupt one character in the middle of the file
 - Run `audit-verify`

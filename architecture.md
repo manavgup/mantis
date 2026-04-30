@@ -140,7 +140,7 @@ All LLM calls route through litellm, making the system provider-agnostic. The de
 **Design decisions**:
 - **Build once, scan many**: Compilation takes minutes for large projects (e.g. FFmpeg). Building once and mounting the result read-only into every worker container eliminates this per-container overhead.
 - **Build-system auto-detection**: The builder tries configure, autotools (autoreconf), cmake, and Makefile in order. `configure_flags` in config allows project-specific build options (e.g. FFmpeg's `--extra-cflags`).
-- **Fallback compilation**: If no `--bin-dir` is supplied to `vuln-harness run`, the pipeline auto-builds before dispatch. If pre-compiled binaries are mounted into the worker, the entrypoint skips compilation entirely.
+- **Fallback compilation**: If no `--bin-dir` is supplied to `mantis run`, the pipeline auto-builds before dispatch. If pre-compiled binaries are mounted into the worker, the entrypoint skips compilation entirely.
 
 ---
 
@@ -356,13 +356,13 @@ Spend is tracked at two levels:
 
 The worker agent loop tracks cost internally via litellm's `response_cost` metadata on each completion call. Token counts (`input_tokens`, `output_tokens`) and cost are included in every `llm_call` audit entry from both the orchestrator (ranking, validation) and workers.
 
-All LLM calls are also logged to the audit trail with model name, token counts, and cost, providing a complete cost breakdown per stage. The CLI command `vuln-harness cost --run-id <uuid>` parses the audit log and prints a per-stage cost summary.
+All LLM calls are also logged to the audit trail with model name, token counts, and cost, providing a complete cost breakdown per stage. The CLI command `mantis cost --run-id <uuid>` parses the audit log and prints a per-stage cost summary.
 
 ---
 
 ## Audit and encryption
 
-**Audit log** (`harness/audit.py`): Append-only JSONL, one entry per action. Each entry includes a SHA-3 hash of its contents and the hash of the previous entry, forming a tamper-evident chain. Writes are synchronous with file locking (`fcntl.LOCK_EX`). If a write fails, the run fails (P3). Chain integrity is verifiable via `vuln-harness audit-verify`.
+**Audit log** (`harness/audit.py`): Append-only JSONL, one entry per action. Each entry includes a SHA-3 hash of its contents and the hash of the previous entry, forming a tamper-evident chain. Writes are synchronous with file locking (`fcntl.LOCK_EX`). If a write fails, the run fails (P3). Chain integrity is verifiable via `mantis audit-verify`.
 
 **Findings encryption** (`harness/crypto.py`): Reproduction steps, candidate patches, and ASAN output are encrypted with AES-256-GCM before storage in Postgres. The encryption key is loaded from the `FINDINGS_ENC_KEY` environment variable (base64-encoded, 32-byte key). Exploit code is never stored in plaintext (P8).
 
